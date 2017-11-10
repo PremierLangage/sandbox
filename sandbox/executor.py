@@ -31,7 +31,7 @@ class Executor:
         self.dirname = os.path.join(settings.MEDIA_ROOT, str(uuid.uuid4()))
         self.docker = CREATE_self.docker()
         self.timeout = timeout
-        self.timeout_feedback = TIMEOUT_FEEDBACK.replace('{X}', timeout)
+        
     
     def __create_dir(self):
         """ Create the directory which will be sent to the docker """
@@ -108,7 +108,7 @@ class Executor:
         
         except timeout_decorator.TimeoutError as e: #Evaluation timed out
             error_message={
-                'feedback': TIMEOUT_FEEDBACK,
+                'feedback': TIMEOUT_FEEDBACK.replace('{X}', timeout),
                 'success': False,
             }
             dico_response = {
