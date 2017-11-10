@@ -98,6 +98,9 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
+MEDIA_ROOT = os.path.join(BASE_DIR, '../tmp')
+MEDIA_URL = '/tmp/'
+
 
 # Docker parameters
 image = "default:PL"
@@ -114,7 +117,6 @@ def CREATE_DOCKER():
         detach=True,
         environment=environment,
         tty=True,
-        restart_policy=restart_policy,
         cpuset_cpus=cpuset_cpus,
         mem_limit=mem_limit, memswap_limit=memswap_limit
     )

@@ -9,7 +9,9 @@
 
 import json, os, tarfile, uuid, timeout_decorator, time
 
-from serverpl.settings import CREATE_self.docker
+from django.conf import settings
+
+from pl_sandbox.settings import CREATE_DOCKER
 
 
 
@@ -29,7 +31,7 @@ class Executor:
     def __init__(self, request, timeout=3):
         self.files = request.FILES
         self.dirname = os.path.join(settings.MEDIA_ROOT, str(uuid.uuid4()))
-        self.docker = CREATE_self.docker()
+        self.docker = CREATE_DOCKER()
         self.timeout = timeout
         
     
@@ -108,7 +110,7 @@ class Executor:
         
         except timeout_decorator.TimeoutError as e: #Evaluation timed out
             error_message={
-                'feedback': TIMEOUT_FEEDBACK.replace('{X}', timeout),
+                'feedback': TIMEOUT_FEEDBACK.replace('{X}', str(self.timeout)),
                 'success': False,
             }
             dico_response = {
@@ -121,7 +123,7 @@ class Executor:
                 return self.execute(1)
             error_message={
                 'feedback':"Erreur de la plateforme. Si le problème persiste, merci de contacter votre professeur.<br> "+str(type(e)).replace('<', '[').replace('>', ']')+": "+str(e),
-                'success': False,
+                'success': "info",
             }
             if "result" in locals():
                 error_message["feedback"] += "<br><br>"+result.decode('UTF-8').replace('\n', '<br>')
@@ -132,6 +134,9 @@ class Executor:
             }
         
         finally:
-            self.docker.kill()
+            try:
+                self.docker.kill()
+            except:
+                pass
             
         return json.dumps(dico_response)

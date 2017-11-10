@@ -9,18 +9,17 @@
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, Http404
 
-from sandbox.executor import ExecutorDocker
-from serverpl.settings import USING_DOCKER
+from sandbox.executor import Executor
 
 
 
 @csrf_exempt
 def execute(request):
+    if request.META["REQUEST_METHOD"] == "HEAD":
+        return HttpResponse('OK !', status=200)
     if request.META["REQUEST_METHOD"] != "POST":
         return HttpResponse('405 Method Not Allowed', status=405)
     
-    if USING_DOCKER:
-        return HttpResponse(ExecutorDocker(request).execute())
     return HttpResponse(Executor(request).execute())
 
 

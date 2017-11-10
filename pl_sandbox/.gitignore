@@ -1,0 +1,9 @@
+*pyc
+__pycache__/
+db.sql*
+*.json
+*.log
+.cache/*
+.coverage/*
+
+

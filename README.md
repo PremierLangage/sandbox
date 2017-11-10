@@ -4,7 +4,7 @@
 
 - python >= 3.5
 - pip3
-- docker
+- docker [See Docker](https://docs.docker.com/engine/installation/linux/docker-ce/debian/)
 
 ### Installation
 
