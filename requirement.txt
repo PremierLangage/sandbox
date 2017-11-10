@@ -1,0 +1,4 @@
+Django
+docker
+pytest
+-e git://github.com/qcoumes/timeout-decorator.git#egg=timeout-decorator
