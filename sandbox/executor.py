@@ -99,7 +99,8 @@ class Executor:
         """
         
         try:
-            self.__create_dir()
+            if not retries:
+                self.__create_dir()
             self.__move_to_docker()
             result = self.__evaluate()
             dico_response = {
@@ -119,8 +120,8 @@ class Executor:
             }
         
         except Exception as e: #Unknown error
-            if not retries:
-                return self.execute(1)
+            if retries < 4:
+                return self.execute(retries+1)
             error_message={
                 'feedback':"Erreur de la plateforme. Si le problème persiste, merci de contacter votre professeur.<br> "+str(type(e)).replace('<', '[').replace('>', ']')+": "+str(e),
                 'success': "info",

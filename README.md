@@ -9,5 +9,5 @@
 ### Installation
 
 - Run server/serverpl/install_local.sh
-- create directories *premierlangage/../tmp* and *premierlangage/../log*
+- create directories *pl-sandbox/../tmp* and *pl-sandbox/../log*
 - Run the server (*python manage.py runserver*)
