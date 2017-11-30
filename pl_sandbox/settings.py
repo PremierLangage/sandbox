@@ -29,7 +29,7 @@ SECRET_KEY = 'oqa57as*^hu4()mtg7r*t^r_9d&g5$ynsbzz63wf&b6y^vbea6'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1']
+ALLOWED_HOSTS = ['127.0.0.1', 'pl-sandbox-test.u-pem.fr']
 
 
 # Application definition
