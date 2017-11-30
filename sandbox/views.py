@@ -6,6 +6,10 @@
 #  Created: 2017-07-30
 #  Last Modified: 2017-09-30
 
+
+import os, time, shutil
+
+from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, Http404
 
@@ -19,6 +23,13 @@ def execute(request):
         return HttpResponse('OK !', status=200)
     if request.META["REQUEST_METHOD"] != "POST":
         return HttpResponse('405 Method Not Allowed', status=405)
+    
+    # Removing tmp files older than 2 hours
+    current_time = time.time()
+    for f in os.listdir(settings.MEDIA_ROOT):
+        creation_time = os.path.getctime(f)
+        if (current_time - creation_time) >= 7200:
+            shutil.rmtree(f)
     
     return HttpResponse(Executor(request).execute())
 
