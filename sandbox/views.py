@@ -27,10 +27,11 @@ def execute(request):
     # Removing tmp files older than 2 hours
     current_time = time.time()
     for f in os.listdir(settings.MEDIA_ROOT):
+        f = os.path.join(settings.MEDIA_ROOT, f)
         creation_time = os.path.getctime(f)
         if (current_time - creation_time) >= 7200:
             shutil.rmtree(f)
-    
+
     return HttpResponse(Executor(request).execute())
 
 

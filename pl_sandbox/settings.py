@@ -104,6 +104,7 @@ def CREATE_DOCKER():
         detach=True,
         environment=environment,
         tty=True,
+        auto_remove=True,
         cpuset_cpus=cpuset_cpus,
         mem_limit=mem_limit, memswap_limit=memswap_limit
     )
