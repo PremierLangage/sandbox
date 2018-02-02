@@ -7,12 +7,13 @@
 #  Last Modified: 2017-09-30
 
 
-import json, os, tarfile, uuid, timeout_decorator, time
+import json, os, tarfile, uuid, timeout_decorator, time, logging
 
 from django.conf import settings
 
 from pl_sandbox.settings import CREATE_DOCKER
 
+logger = logging.getLogger(__name__)
 
 
 TIMEOUT_FEEDBACK = """
@@ -110,6 +111,7 @@ class Executor:
             dico_response['path_files'] = self.dirname
         
         except timeout_decorator.TimeoutError as e: #Evaluation timed out
+            logger.info("Sandbox execution timed out after "+ str(self.timeout) +" seconds");
             error_message={
                 'feedback': TIMEOUT_FEEDBACK.replace('{X}', str(self.timeout)),
                 'success': False,
@@ -121,7 +123,9 @@ class Executor:
         
         except Exception as e: #Unknown error
             if retries < 4:
+                logger.info("Unknow error... retrying ("+str(retries+1)+").");
                 return self.execute(retries+1)
+            logger.warning("Execution failed after 4 retries:", exc_info=True);
             error_message={
                 'feedback':"Erreur de la plateforme. Si le problème persiste, merci de contacter votre professeur.<br> "+str(type(e)).replace('<', '[').replace('>', ']')+": "+str(e),
                 'success': "info",
