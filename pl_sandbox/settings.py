@@ -135,7 +135,7 @@ MEDIA_URL = '/tmp/'
 # Docker parameters
 image = "default:PL"
 environment = {}        #(dict) Environment variables to set inside the container, as a dictionary.
-mem_limit = "500m"      #(str) Memory limit. String with a units identification char (13b, 12k, 14m, 1g).
+mem_limit = "50m"      #(str) Memory limit. String with a units identification char (13b, 12k, 14m, 1g).
 memswap_limit = 0       #(str) See https://docs.docker.com/engine/admin/resource_constraints/#--memory-swap-details
 cpuset_cpus = "0"       #(str) CPUs in which to allow execution ("0-3", "0,1").
 
