@@ -56,10 +56,9 @@ class Executor:
     
     @timeout_decorator.timeout(use_class_attribute=True, use_signals=False)
     def __evaluate(self):
-        """ Unzip environment.zip and execute grader.py, returning the result. """
+        """Execute grader.py, returning the result. """
         
-        result = self.docker.exec_run("python3 grader.py")
-        return result
+        return self.docker.exec_run("python3 grader.py")
         
         
     def execute(self, retries=0):
