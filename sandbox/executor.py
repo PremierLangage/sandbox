@@ -37,35 +37,27 @@ class Executor:
         
     
     def __create_dir(self):
-        """ Create the directory which will be sent to the docker """
+        """ Create the tar which will be sent to the docker """
         
-        for key in ['environment.zip', 'grader.py', 'student.py']:
-            if not key in self.files:
-                raise KeyError('Key "'+key+'" not found in request.files')
+        if not 'environment.tgz' in self.files:
+            raise KeyError('environment.tgz not found in request.files')
         os.mkdir(self.dirname)
-        for filename in self.files.keys():
+        for filename in self.files:
             with open(self.dirname+"/"+filename, 'wb') as f:
                 f.write(self.files[filename].read())
     
     
     def __move_to_docker(self):
-        """ Send the directory to the Docker by taring the directory, using Docker.put_archive() and untaring it inside the Docker"""
-        
-        with tarfile.open(self.dirname+"/pl.tar", "w") as tar:
-            for key in self.files.keys():
-                tar.add(self.dirname+"/"+key, arcname=key)
-        
-        with open(self.dirname+"/pl.tar", 'rb') as tar_bytes:
+        """ Send the tar to the Docker, using Docker.put_archive() and untaring it inside the Docker"""
+        with open(self.dirname+"/environment.tgz", 'rb') as tar_bytes:
             self.docker.put_archive("/home/docker/", tar_bytes.read())
-        
-        self.docker.exec_run("tar -xf /home/docker/")
+        self.docker.exec_run("tar -xzf /home/docker/")
     
     
     @timeout_decorator.timeout(use_class_attribute=True, use_signals=False)
     def __evaluate(self):
         """ Unzip environment.zip and execute grader.py, returning the result. """
         
-        self.docker.exec_run("unzip -o /home/docker/environment.zip")
         result = self.docker.exec_run("python3 grader.py")
         return result
         
@@ -106,7 +98,7 @@ class Executor:
             result = self.__evaluate()
             dico_response = {
                 "platform_error": [],
-                "grade": json.loads(result.decode("UTF-8")),
+                "grade": json.loads(result[1].decode("UTF-8")),
             }
             dico_response['path_files'] = self.dirname
         
@@ -130,8 +122,6 @@ class Executor:
                 'feedback':"Erreur de la plateforme. Si le problème persiste, merci de contacter votre professeur.<br> "+str(type(e)).replace('<', '[').replace('>', ']')+": "+str(e),
                 'success': "info",
             }
-            if "result" in locals():
-                error_message["feedback"] += "<br><br>"+result.decode('UTF-8').replace('\n', '<br>')
             dico_response = {
                 "platform_error": [str(e)],
                 "grade":  error_message,

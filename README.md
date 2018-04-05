@@ -8,9 +8,9 @@
 
 ### Installation
 
-- Run server/serverpl/install_local.sh
-- create directories *pl-sandbox/../tmp* and *pl-sandbox/../log*
-- Run the server (*python manage.py runserver*)
+- Run server/serverpl/install.sh
+- create directories *pl-sandbox/../tmp*
+- Run the server (*python3 manage.py runserver*)
 
 
 # Logging

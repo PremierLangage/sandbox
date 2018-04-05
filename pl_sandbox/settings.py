@@ -145,7 +145,6 @@ def CREATE_DOCKER():
     return docker.from_env().containers.run(
         image,
         detach=True,
-	auto_remove=True,
         environment=environment,
         tty=True,
         auto_remove=True,

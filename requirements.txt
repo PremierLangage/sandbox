@@ -1,4 +1,18 @@
-Django
-docker
-pytest
--e git://github.com/qcoumes/timeout-decorator.git#egg=timeout-decorator
+attrs==17.4.0
+certifi==2018.1.18
+chardet==3.0.4
+Django==2.0.4
+docker==3.2.1
+docker-pycreds==0.2.2
+idna==2.6
+more-itertools==4.1.0
+pkg-resources==0.0.0
+pluggy==0.6.0
+py==1.5.3
+pytest==3.5.0
+pytz==2018.3
+requests==2.18.4
+six==1.11.0
+-e git://github.com/qcoumes/timeout-decorator.git@828367848280bb12f77571fb589c92f0b1f8525f#egg=timeout_decorator
+urllib3==1.22
+websocket-client==0.47.0
