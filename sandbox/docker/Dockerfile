@@ -1,21 +1,11 @@
-FROM debian:jessie
+FROM debian:stretch
 
 MAINTAINER Quentin COUMES <qcoumes@etud.u-pem.fr>
 
 ENV DEBIAN_FRONTEND noninteractive
 
 RUN apt-get update
-RUN apt-get install -y --no-install-recommends sudo locales wget build-essential libssl-dev openssl unzip
-
-#Installing python 3.5.1 from source
-RUN wget --no-check-certificate https://www.python.org/ftp/python/3.5.1/Python-3.5.1.tgz \
-    -O /tmp/python.tgz &&\
-    mkdir -p /tmp/python &&\
-    tar xvfz /tmp/python.tgz -C /tmp/python &&\
-    cd /tmp/python/Python-3.5.1 &&\
-    sh ./configure &&\
-    make &&\
-    make install
+RUN apt-get install -y --no-install-recommends sudo locales wget build-essential libssl-dev openssl unzip python3
 
 RUN wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py
 RUN python3 /tmp/get-pip.py

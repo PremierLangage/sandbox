@@ -7,11 +7,11 @@
 #  Last Modified: 2017-09-30
 
 
-import json, os, tarfile, uuid, timeout_decorator, time, logging
+import json, os, tarfile, uuid, timeout_decorator, time, logging, traceback
 
 from django.conf import settings
 
-from pl_sandbox.settings import CREATE_DOCKER
+from sandbox.exceptions import MissingGradeError, GraderError
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +32,11 @@ class Executor:
     def __init__(self, request, timeout=3):
         self.files = request.FILES
         self.dirname = os.path.join(settings.MEDIA_ROOT, str(uuid.uuid4()))
-        self.docker = CREATE_DOCKER()
+        self.docker = settings.CREATE_DOCKER()
         self.timeout = timeout
         
     
-    def __create_dir(self):
+    def _create_dir(self):
         """ Create the tar which will be sent to the docker """
         
         if not 'environment.tgz' in self.files:
@@ -47,7 +47,7 @@ class Executor:
                 f.write(self.files[filename].read())
     
     
-    def __move_to_docker(self):
+    def _move_to_docker(self):
         """ Send the tar to the Docker, using Docker.put_archive() and untaring it inside the Docker"""
         with open(self.dirname+"/environment.tgz", 'rb') as tar_bytes:
             self.docker.put_archive("/home/docker/", tar_bytes.read())
@@ -55,82 +55,97 @@ class Executor:
     
     
     @timeout_decorator.timeout(use_class_attribute=True, use_signals=False)
-    def __evaluate(self):
+    def _evaluate(self):
         """Execute grader.py, returning the result. """
         
         return self.docker.exec_run("python3 grader.py")
         
         
-    def execute(self, retries=0):
+    def execute(self):
         """ 
         Send the environnement to the docker and evaluate the student's code.
-            - If the evaluation suceeded, return a json of this dic:
-                {
-                    "platform_error": [],
-                    "grade": {
-                        "success": [True/False] according to the evaluation.
-                        "feedback": [feedback]
-                    }
-                }
-            - If the evaluation timed out, return a json of this dic:
-                {
-                    "platform_error": [],
-                    "grade": {
-                        "success": False,
-                        "feedback": [Error message]
-                    }
-                }
-            - If the evaluation failed, return a json of this dic:
-                {
-                    "platform_error": [list of errors],
-                    "grade": {
-                        "success": False,
-                        "feedback": [Error message]
-                    }
-                }
         """
-        
         try:
-            if not retries:
-                self.__create_dir()
-            self.__move_to_docker()
-            result = self.__evaluate()
-            dico_response = {
-                "platform_error": [],
-                "grade": json.loads(result[1].decode("UTF-8")),
-            }
-            dico_response['path_files'] = self.dirname
-        
-        except timeout_decorator.TimeoutError as e: #Evaluation timed out
-            logger.info("Sandbox execution timed out after "+ str(self.timeout) +" seconds");
-            error_message={
-                'feedback': TIMEOUT_FEEDBACK.replace('{X}', str(self.timeout)),
-                'success': False,
-            }
-            dico_response = {
-                "platform_error": [str(e)],
-                "grade":  error_message,
-            }
-        
-        except Exception as e: #Unknown error
-            if retries < 4:
-                logger.info("Unknow error... retrying ("+str(retries+1)+").");
-                return self.execute(retries+1)
-            logger.warning("Execution failed after 4 retries:", exc_info=True);
-            error_message={
-                'feedback':"Erreur de la plateforme. Si le problème persiste, merci de contacter votre professeur.<br> "+str(type(e)).replace('<', '[').replace('>', ']')+": "+str(e),
-                'success': "info",
-            }
-            dico_response = {
-                "platform_error": [str(e)],
-                "grade":  error_message,
+            self._create_dir()
+            self._move_to_docker()
+            cwd = os.getcwd()
+            exit_code, output = self._evaluate()
+            output = output.decode("UTF-8")
+            if exit_code:
+                if exit_code > 1000 or exit_code < 0:
+                    raise GraderError("Grader exit code should be "
+                            + "[0, 999] (received '"
+                            + str(exit_code)+"').")
+                response = {
+                    'feedback': "Erreur lors de l'évaluation de votre "\
+                        + "réponse, merci de contacter votre professeur.",
+                    'error': output,
+                    'grade': -exit_code,
+                    'other': [],
+                }
             
+            else:
+                output = json.loads(output)
+                if not 'grade' in output and not 'success' in output:
+                    raise MissingGradeError
+                if 'success' in output:
+                    output['grade'] = 100 if output['success'] else 0
+                response = {
+                    'feedback': ("No feedback provided by the grader"
+                                 if 'feedback' not in output 
+                                 else output['feedback']),
+                    'error': "" if 'error' not in output else output['error'],
+                    'other': [] if 'other' not in output else output['other'],
+                    'grade': output['grade'],
+                }
+        
+        except timeout_decorator.TimeoutError as e:
+            response = {
+                'feedback': TIMEOUT_FEEDBACK.replace('{X}', str(self.timeout)),
+                'grade' : 0
             }
+        
+        except MissingGradeError as e:
+            response = {
+                'feedback': ("Erreur lors de l'évaluation de votre "
+                    + "réponse, merci de contacter votre professeur."),
+                'error': str(e),
+                'grade': -3,
+                'other': [],
+            }
+        
+        except GraderError as e:
+            response = {
+                'feedback': ("Erreur lors de l'évaluation de votre "
+                    + "réponse, merci de contacter votre professeur."),
+                'error': str(e),
+                'grade': -4,
+                'other': [],
+            }
+
+        except Exception as e: #Unknown error
+            response = {
+                'feedback': ("Erreur lors de l'évaluation de votre "
+                    + "réponse, merci de contacter votre professeur."),
+                'error': traceback.format_exc(),
+                'grade': -5,
+                'other': [],
+            }
+            logger.error(
+                "Couldn't kill docker <"
+               + str(self.docker.id) + " - " + str(self.docker.name) + "> :\n"
+               + traceback.format_exc()
+            )
         
         finally:
             try:
                 self.docker.kill()
             except:
-                pass
+                logger.error(
+                    "Couldn't kill docker <"
+                   + str(self.docker.id) + " - " + str(self.docker.name) + "> :\n"
+                   + traceback.format_exc()
+                )
+                   
             
-        return json.dumps(dico_response)
+        return json.dumps(response)
