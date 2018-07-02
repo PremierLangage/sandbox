@@ -11,10 +11,11 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
 import os, docker
+import pl_sandbox.config as CONF
 
 from pl_sandbox.testing import DatabaselessTestRunner
 
-
+DEPLOY = True
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -24,12 +25,12 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'oqa57as*^hu4()mtg7r*t^r_9d&g5$ynsbzz63wf&b6y^vbea6'
+SECRET_KEY = '+61drt2^c32qp)knvy32m*xm*ew=po%f8a9l!bp$kd7mz3(109' if not DEPLOY else CONF.SECRET_KEY
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = not DEPLOY
 
-ALLOWED_HOSTS = ['127.0.0.1']
+ALLOWED_HOSTS = ['pl-sandbox.u-pem.fr'] if not DEPLOY else CONF.ALLOWED_HOSTS
 
 
 # Application definition
@@ -98,12 +99,16 @@ cpuset_cpus = "0"     #(str) CPUs in which to allow execution ("0-3", "0,1").
 
 
 # Docker creating function
-def CREATE_DOCKER():
-    return docker.from_env().containers.run(
-        image,
-        detach=True,
-        environment=environment,
-        tty=True,
-        cpuset_cpus=cpuset_cpus,
-        mem_limit=mem_limit, memswap_limit=memswap_limit
-    )
+if not DEPLOY:
+    def CREATE_DOCKER():
+        return docker.from_env().containers.run(
+            image,
+            detach=True,
+            environment=environment,
+            auto_remove=True,
+            tty=True,
+            cpuset_cpus=cpuset_cpus,
+            mem_limit=mem_limit, memswap_limit=memswap_limit
+        )
+else
+    CREATE_DOCKER = CONF.CREATE_DOCKER
