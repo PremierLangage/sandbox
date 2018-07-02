@@ -153,5 +153,5 @@ if not DEPLOY:
             cpuset_cpus=cpuset_cpus,
             mem_limit=mem_limit, memswap_limit=memswap_limit
         )
-else
+else:
     CREATE_DOCKER = CONF.CREATE_DOCKER
