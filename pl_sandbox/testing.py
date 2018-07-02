@@ -1,4 +1,4 @@
-"""Support for testing."""
+"""Support for no database testing."""
 
 from django.test.runner import DiscoverRunner
 
