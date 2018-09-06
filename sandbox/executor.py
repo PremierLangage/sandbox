@@ -1,6 +1,6 @@
 # coding: utf-8
 
-import json, os, tarfile, uuid, time, logging, traceback, threading, tempfile
+import json, os, tarfile, uuid, time, logging, traceback, threading, tempfile, gzip, io, shutil
 
 import timeout_decorator
 from django.conf import settings
@@ -62,9 +62,19 @@ class Executor:
         self.docker.exec_run("mkdir " + path)
         self.docker.exec_run(["/bin/sh", "-c", "mv * " + path])
         tar_gen = self.docker.get_archive('/home/docker/' + path)[0]
-        with open(os.path.join(settings.MEDIA_ROOT, path+ext), 'wb+') as tar:
+        
+        tar_path = os.path.join(settings.MEDIA_ROOT, path + ".tar")
+        targz_path = os.path.join(settings.MEDIA_ROOT, path + ext)
+        
+        with open(tar_path, 'wb+') as tar:
             for chunk in tar_gen:
                 tar.write(chunk)
+        
+        with open(tar_path, 'rb') as f_in:
+            with gzip.open(targz_path, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        
+        os.remove(tar_path)
     
     
     def get_file(self, path):
@@ -225,9 +235,23 @@ class Evaluator(Executor):
     
     
     def add_answer_to_env(self):
-        with tempfile.NamedTemporaryFile(mode='w+') as tmp, tarfile.open(self.envpath, mode="w:gz") as tar:
+        with tempfile.NamedTemporaryFile(mode='w+') as tmp:
             tmp.write(self.answers)
-            tar.add(tmp.name, arcname=ANSWERS_FILE)
+            stream = io.BytesIO()
+            
+            # Decompressing tar
+            with gzip.open(self.envpath) as g:
+                stream.write(g.read())
+            
+            # Adding new file
+            stream.seek(0)
+            with tarfile.open(fileobj=stream, mode="a") as tar:
+                tar.add(tmp.name, arcname=os.path.join(self.envid, ANSWERS_FILE))
+
+            # Compressing back
+            stream.seek(0)
+            with gzip.open(self.envpath, "wb") as g:
+                g.write(stream.read())
     
     
     @timeout_decorator.timeout(use_class_attribute=True, use_signals=False)
@@ -239,6 +263,8 @@ class Evaluator(Executor):
             "python3 grader.py " + ' '.join([BUILT_CONTEXT_FILE, EVALUATED_CONTEXT_FILE, FEEDBACK_FILE])
             + " 2> " + STDERR_FILE,
         ]
+        self.docker.exec_run(["/bin/sh", "-c", "mv " + str(self.envid) + "/* ./"])
+        self.docker.exec_run("rm " + str(self.envid) + " -Rf")
         ret = self.docker.exec_run(cmd)
         msg = ("Execution of evaluate with parameters "
                + "DOCKER_MEM_LIMIT=" + str(settings.DOCKER_MEM_LIMIT) + " and "
@@ -294,7 +320,8 @@ class Evaluator(Executor):
                 "feedback": ("Execution of the evaluating script returned an invalid value."
                              + " Please contact your teacher."),
                 "context": {},
-                "sandboxerr": "Grader script did not return a valid integer, received:\n" + stdout
+                "sandboxerr": ("Grader script did not return a valid integer on stdout, received:\n"
+                               + (stdout if stdout else "[NOTHING]"))
             }
         except Exception as e: #Unknown error
             response = {
