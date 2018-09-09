@@ -145,7 +145,14 @@ class EvalView(View):
             
             path = os.path.join(settings.MEDIA_ROOT, env + '_built.tgz')
             if not os.path.isfile(path):
-                raise Http404("Environment with id '" + env + "' not found")
+                if os.path.isfile(os.path.join(settings.MEDIA_ROOT, env + ".tgz")):
+                    # If the not built environment exists, the built one is probably being saved by
+                    # another thread, 1 seconds should be enough for it to finish if that's the case.
+                    time.sleep(1)
+                    if not os.path.isfile(path):
+                        raise Http404("Environment with id '" + env + "' not found")
+                else:
+                    raise Http404("Environment with id '" + env + "' not found")
             
             response = Evaluator(path, request.build_absolute_uri(reverse("sandbox:index")), answers).execute()
         except Exception:  # Unknown error
