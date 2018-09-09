@@ -220,11 +220,6 @@ class Evaluator(Executor):
         self.answers = answers
     
     
-    def get_env_and_kill(self):
-        self.get_env_from_docker("_evaluated")
-        self.kill_docker()
-    
-    
     def get_context(self):
         """Return content of EVALUATED_CONTEXT_FILE as a dictionnary (file must be a valid json).
         Raises ContextNotFoundError if the file could not be found."""
@@ -237,18 +232,19 @@ class Evaluator(Executor):
     def add_answer_to_env(self):
         with tempfile.NamedTemporaryFile(mode='w+') as tmp:
             tmp.write(self.answers)
-            stream = io.BytesIO()
+            tmp.seek(0)
             
-            # Decompressing tar
+            stream = io.BytesIO()
+            # Decompressing tar into stream
             with gzip.open(self.envpath) as g:
                 stream.write(g.read())
             
-            # Adding new file
+            # Adding new file into stream
             stream.seek(0)
             with tarfile.open(fileobj=stream, mode="a") as tar:
                 tar.add(tmp.name, arcname=os.path.join(self.envid, ANSWERS_FILE))
 
-            # Compressing back
+            # Compressing back stream
             stream.seek(0)
             with gzip.open(self.envpath, "wb") as g:
                 g.write(stream.read())
@@ -260,7 +256,7 @@ class Evaluator(Executor):
         start = time.time()
         cmd = [
             "/bin/sh", "-c", 
-            "python3 grader.py " + ' '.join([BUILT_CONTEXT_FILE, EVALUATED_CONTEXT_FILE, FEEDBACK_FILE])
+            "python3 grader.py " + ' '.join([BUILT_CONTEXT_FILE, ANSWERS_FILE, EVALUATED_CONTEXT_FILE, FEEDBACK_FILE])
             + " 2> " + STDERR_FILE,
         ]
         self.docker.exec_run(["/bin/sh", "-c", "mv " + str(self.envid) + "/* ./"])
@@ -338,6 +334,6 @@ class Evaluator(Executor):
             logger.exception("An unknown exception occured during eval of env %s:" % self.envid)
         
         finally:
-            threading.Thread(target=self.get_env_and_kill).start()
+            threading.Thread(target=self.kill_docker).start()
             
         return response
