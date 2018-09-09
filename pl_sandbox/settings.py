@@ -101,11 +101,7 @@ LOGGING = {
         }
     },
     'loggers': {
-        'django':{
-            'handlers': ['console', 'syslog', 'mail_admins'],
-            'level': 'INFO',
-        },
-        'sandbox':{
+        '':{
             'handlers': ['console', 'syslog', 'mail_admins'],
             'level': 'INFO',
         },
