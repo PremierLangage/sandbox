@@ -11,6 +11,12 @@ if [ "$ver" -lt "35" ]; then
 fi
 echo "Python >= 3.5: OK !"
 
+
+#Creating needed directory
+if [ ! -d "tmp" ]; then
+    mkdir tmp || { echo>&2 "ERROR: Can't create ./tmp/" ; exit 1; }
+fi
+
 #Checking if Docker is installed
 command -v docker >/dev/null 2>&1 || { echo >&2 "ERROR: Docker should be installed (see: https://docs.docker.com/engine/installation/linux/docker-ce/debian/)."; exit 1; }
 echo "docker: OK !"

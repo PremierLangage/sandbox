@@ -1,23 +1,33 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# Python [3.6]
-#
-#  Author: Coumes Quentin     Mail: qcoumes@etud.u-pem.fr
-#  Created: 2017-07-30
-#  Last Modified: 2017-09-30
+# coding: utf-8
 
+import json, os, tarfile, uuid, time, logging, traceback, threading, tempfile, gzip, io, shutil
 
-import json, os, tarfile, uuid, timeout_decorator, time, logging, traceback
-
+import timeout_decorator
 from django.conf import settings
 
-from sandbox.exceptions import MissingGradeError, GraderError
+from sandbox.exceptions import ContextNotFoundError, GraderError
+from sandbox.enums import SandboxErrCode
+
+
 
 logger = logging.getLogger(__name__)
 
 
+BUILD_TIMEOUT = 5
+EVAL_TIMEOUT = 5
+
+
+CONTEXT_FILE = "pl.json"
+BUILT_CONTEXT_FILE = "built_pl.json"
+STDOUT_FILE = "stdout.log"
+STDERR_FILE = "stderr.log"
+FEEDBACK_FILE = "feedback.html"
+EVALUATED_CONTEXT_FILE = "evaluated_pl.json"
+ANSWERS_FILE = "answers.json"
+
+
 TIMEOUT_FEEDBACK = """
-L'éxecution de votre programme prends trop de temps (maximum {X} secondes autorisées).
+L'éxecution de votre programme prends trop de temps (maximum %d secondes autorisées).
 <br><br>Cette erreur peut être dû:
 <ul>
     <li>À une boucle infinie. Pensez à vérifier les conditions d'arrêts de vos boucles <strong>while</strong> ainsi que de vos fonctions récursives.</li>
@@ -26,126 +36,304 @@ L'éxecution de votre programme prends trop de temps (maximum {X} secondes autor
 """
 
 
+
 class Executor:
-    """ This class provide an interface to execute student's code inside a docker. """
+    """This class provide an interface to execute PL scripts."""
     
-    def __init__(self, request, timeout=3):
-        self.files = request.FILES
-        self.dirname = os.path.join(settings.MEDIA_ROOT, str(uuid.uuid4()))
+    def __init__(self, envpath, sandbox_url, timeout=0):
+        self.envpath = envpath
+        self.sandbox_url = sandbox_url
+        self.envid = os.path.splitext(os.path.basename(envpath))[0]
         self.docker = settings.CREATE_DOCKER()
         self.timeout = timeout
-        
-    
-    def _create_dir(self):
-        """ Create the tar which will be sent to the docker """
-        
-        if not 'environment.tgz' in self.files:
-            raise KeyError('environment.tgz not found in request.files')
-        os.mkdir(self.dirname)
-        for filename in self.files:
-            with open(self.dirname+"/"+filename, 'wb') as f:
-                f.write(self.files[filename].read())
     
     
-    def _move_to_docker(self):
-        """ Send the tar to the Docker, using Docker.put_archive() and untaring it inside the Docker"""
-        with open(self.dirname+"/environment.tgz", 'rb') as tar_bytes:
-            self.docker.put_archive("/home/docker/", tar_bytes.read())
+    def move_env_to_docker(self):
+        """Send the tar to the Docker, using Docker.put_archive() and untaring it inside the Docker"""
+        with open(self.envpath, 'rb') as tar:
+            self.docker.put_archive("/home/docker/", tar.read())
         self.docker.exec_run("tar -xzf /home/docker/")
     
     
+    def get_env_from_docker(self, suffix):
+        """Retrieve the environment from the docker, using Docker.get_archive() and write it to envpath"""
+        path, ext = os.path.splitext(os.path.basename(self.envpath))
+        path = path + suffix
+        self.docker.exec_run("mkdir " + path)
+        self.docker.exec_run(["/bin/sh", "-c", "mv * " + path])
+        tar_gen = self.docker.get_archive('/home/docker/' + path)[0]
+        
+        tar_path = os.path.join(settings.MEDIA_ROOT, path + ".tar")
+        targz_path = os.path.join(settings.MEDIA_ROOT, path + ext)
+        
+        with open(tar_path, 'wb+') as tar:
+            for chunk in tar_gen:
+                tar.write(chunk)
+        
+        with open(tar_path, 'rb') as f_in:
+            with gzip.open(targz_path, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        
+        os.remove(tar_path)
+    
+    
+    def get_file(self, path):
+        """Return the content of /home/docker/<path> if found, an empty string otherwise."""
+        exit_code, stdout = self.docker.exec_run("cat /home/docker/" + path)
+        return stdout.decode() if not exit_code else ""
+    
+    
+    def get_stdout(self):
+        """Return content of /home/docker/STDOUT_FILE if found, an empty string otherwise."""
+        return self.get_file(STDOUT_FILE)
+    
+    
+    def get_stderr(self):
+        """Return content of /home/docker/STDERR_FILE if found, an empty string otherwise."""
+        return self.get_file(STDERR_FILE)
+    
+    
+    def get_feedback(self):
+        """Return content of /home/docker/FEEDBACK_FILE if found, an empty string otherwise."""
+        return self.get_file(FEEDBACK_FILE)
+    
+    
+    def kill_docker(self):
+        """Kill the docker."""
+        try:
+            self.docker.kill()
+        except:
+            logger.error(
+                "Couldn't kill docker "
+               + "<" + str(self.docker.id) + " - " + str(self.docker.name) + "> :\n"
+               + traceback.format_exc()
+            )
+    
+    
+    def get_env_and_kill(self):
+        raise NotImplementedError
+    
+    
+    def get_context(self):
+        raise NotImplementedError
+    
+    
+    def execute(self):
+        raise NotImplementedError
+
+
+
+class Builder(Executor):
+    
+    def __init__(self, envpath, sandbox_url, timeout=BUILD_TIMEOUT):
+        super().__init__(envpath, sandbox_url, timeout)
+    
+    
+    def get_env_and_kill(self):
+        self.get_env_from_docker("_built")
+        self.kill_docker()
+    
+    
+    def get_context(self):
+        """Return content of BUILT_CONTEXT_FILE as a dictionnary (file must be a valid json).
+        Raises ContextNotFoundError if the file could not be found."""
+        exit_code, out = self.docker.exec_run("cat /home/docker/" + BUILT_CONTEXT_FILE)
+        if exit_code:
+            raise ContextNotFoundError
+        return json.loads(out.decode())
+    
+    
     @timeout_decorator.timeout(use_class_attribute=True, use_signals=False)
-    def _evaluate(self):
+    def build(self):
+        """Execute builder.py, returning the result.
+        Content of the command output can vary, use get_stdout() and get_stderr() method to retrieve
+        standards stream."""
+        start = time.time()
+        cmd = [
+            "/bin/sh", "-c", 
+            "python3 builder.py " + ' '.join([CONTEXT_FILE, BUILT_CONTEXT_FILE])
+            + " 2> " + STDERR_FILE + " > " + STDOUT_FILE,
+        ]
+        ret = self.docker.exec_run(cmd)
+        msg = ("Execution of build with parameters "
+               + "DOCKER_MEM_LIMIT=" + str(settings.DOCKER_MEM_LIMIT) + " and "
+               + "DOCKER_CPUSET_CPUS=" + str(settings.DOCKER_CPUSET_CPUS)
+               + " took " + str(time.time() - start) + " secondes.")
+        logger.info(msg)
+        return ret
+    
+    
+    def execute(self):
+        """Execute the class command and return a valid response dictionnary."""
+        try:
+            self.move_env_to_docker()
+            exit_code, _ = self.build()
+            response = {
+                "id": self.envid,
+                "sandbox_url": self.sandbox_url,
+                "status": exit_code,
+                "stderr": self.get_stderr(),
+                "context": self.get_context() if not exit_code else {},
+                "sandboxerr": ""
+            }
+        except timeout_decorator.TimeoutError:
+            response = {
+                "id": self.envid,
+                "sandbox_url": self.sandbox_url,
+                "status": SandboxErrCode.TIMEOUT,
+                "stderr": self.get_stderr(),
+                "context": {},
+                "sandboxerr": ("Execution of the script build/before timed out after " 
+                               + str(self.timeout) + " seconds.")
+            }
+        except ContextNotFoundError:
+            response = {
+                "id": self.envid,
+                "sandbox_url": self.sandbox_url,
+                "status": SandboxErrCode.CONTEXT_NOT_FOUND,
+                "stderr": self.get_stderr(),
+                "context": {},
+                "sandboxerr": ("File '" + BUILT_CONTEXT_FILE + "' and '" + CONTEXT_FILE + "' were "
+                               + "not found in the environment after the execution of the "
+                               + "build/before script.")
+            }
+        except Exception:  # Unknown error
+            response = {
+                "id": self.envid,
+                "sandbox_url": self.sandbox_url,
+                "status": SandboxErrCode.UNKNOWN,
+                "stderr": self.get_stderr(),
+                "context": {},
+                "sandboxerr": "An unknown error occured:\n" + traceback.format_exc()
+            }
+            logger.exception("An unknown exception occured during build of env %s:" % self.envid)
+        finally:
+            threading.Thread(target=self.get_env_and_kill).start()
+        return response
+
+
+
+class Evaluator(Executor):
+    
+    def __init__(self, envpath, sandbox_url, answers, timeout=EVAL_TIMEOUT):
+        super().__init__(envpath, sandbox_url, timeout)
+        self.answers = answers
+    
+    
+    def get_context(self):
+        """Return content of EVALUATED_CONTEXT_FILE as a dictionnary (file must be a valid json).
+        Raises ContextNotFoundError if the file could not be found."""
+        exit_code, out = self.docker.exec_run("cat /home/docker/" + EVALUATED_CONTEXT_FILE)
+        if exit_code:
+            raise ContextNotFoundError
+        return json.loads(out.decode())
+    
+    
+    def add_answer_to_env(self):
+        with tempfile.NamedTemporaryFile(mode='w+') as tmp:
+            tmp.write(self.answers)
+            tmp.seek(0)
+            
+            stream = io.BytesIO()
+            # Decompressing tar into stream
+            with gzip.open(self.envpath) as g:
+                stream.write(g.read())
+            
+            # Adding new file into stream
+            stream.seek(0)
+            with tarfile.open(fileobj=stream, mode="a") as tar:
+                tar.add(tmp.name, arcname=os.path.join(self.envid, ANSWERS_FILE))
+
+            # Compressing back stream
+            stream.seek(0)
+            with gzip.open(self.envpath, "wb") as g:
+                g.write(stream.read())
+    
+    
+    @timeout_decorator.timeout(use_class_attribute=True, use_signals=False)
+    def evaluate(self):
         """Execute grader.py, returning the result. """
-        
-        return self.docker.exec_run("python3 grader.py")
-        
-        
+        start = time.time()
+        cmd = [
+            "/bin/sh", "-c", 
+            "python3 grader.py " + ' '.join([BUILT_CONTEXT_FILE, ANSWERS_FILE, EVALUATED_CONTEXT_FILE, FEEDBACK_FILE])
+            + " 2> " + STDERR_FILE,
+        ]
+        self.docker.exec_run(["/bin/sh", "-c", "mv " + str(self.envid) + "/* ./"])
+        self.docker.exec_run("rm " + str(self.envid) + " -Rf")
+        ret = self.docker.exec_run(cmd)
+        msg = ("Execution of evaluate with parameters "
+               + "DOCKER_MEM_LIMIT=" + str(settings.DOCKER_MEM_LIMIT) + " and "
+               + "DOCKER_CPUSET_CPUS=" + str(settings.DOCKER_CPUSET_CPUS)
+               + " took " + str(time.time() - start) + " secondes.")
+        logger.info(msg)
+        return ret
+    
+    
     def execute(self):
         """ 
         Send the environnement to the docker and evaluate the student's code.
         """
         try:
-            self._create_dir()
-            self._move_to_docker()
-            cwd = os.getcwd()
-            exit_code, output = self._evaluate()
-            output = output.decode("UTF-8")
-            if exit_code:
-                if exit_code > 1000 or exit_code < 0:
-                    raise GraderError("Grader exit code should be "
-                            + "[0, 999] (received '"
-                            + str(exit_code)+"').")
-                response = {
-                    'feedback': "Erreur lors de l'évaluation de votre "\
-                        + "réponse, merci de contacter votre professeur.",
-                    'error': output,
-                    'grade': -exit_code,
-                    'other': [],
-                }
-            
-            else:
-                output = json.loads(output)
-                if not 'grade' in output and not 'success' in output:
-                    raise MissingGradeError
-                if 'success' in output:
-                    output['grade'] = 100 if output['success'] else 0
-                response = {
-                    'feedback': ("No feedback provided by the grader"
-                                 if 'feedback' not in output 
-                                 else output['feedback']),
-                    'error': "" if 'error' not in output else output['error'],
-                    'other': [] if 'other' not in output else output['other'],
-                    'grade': output['grade'],
-                }
-        
+            self.add_answer_to_env()
+            self.move_env_to_docker()
+            exit_code, stdout = self.evaluate()
+            stdout = stdout.decode()
+            try:
+                if not exit_code:
+                    stdout = int(stdout)
+            except:
+                raise GraderError()
+            response = {
+                "id": self.envid,
+                "sandbox_url": self.sandbox_url,
+                "status": exit_code,
+                "grade": stdout if not exit_code else -1,
+                "stderr": self.get_stderr(),
+                "feedback": self.get_feedback(),
+                "context": self.get_context() if not exit_code else {},
+                "sandboxerr": "",
+            }
         except timeout_decorator.TimeoutError as e:
             response = {
-                'feedback': TIMEOUT_FEEDBACK.replace('{X}', str(self.timeout)),
-                'grade' : 0
+                "id": self.envid,
+                "sandbox_url": self.sandbox_url,
+                "status": SandboxErrCode.TIMEOUT,
+                "grade": -1,
+                "stderr": self.get_stderr(),
+                "feedback": TIMEOUT_FEEDBACK % self.timeout,
+                "context": {},
+                "sandboxerr": ("Execution of the evaluating script timed out after " 
+                               + str(self.timeout) + " seconds.")
             }
-        
-        except MissingGradeError as e:
-            response = {
-                'feedback': ("Erreur lors de l'évaluation de votre "
-                    + "réponse, merci de contacter votre professeur."),
-                'error': str(e),
-                'grade': -3,
-                'other': [],
-            }
-        
         except GraderError as e:
             response = {
-                'feedback': ("Erreur lors de l'évaluation de votre "
-                    + "réponse, merci de contacter votre professeur."),
-                'error': str(e),
-                'grade': -4,
-                'other': [],
+                "id": self.envid,
+                "sandbox_url": self.sandbox_url,
+                "status": SandboxErrCode.GRADER_NOT_INT,
+                "grade": -1,
+                "stderr": self.get_stderr(),
+                "feedback": ("Execution of the evaluating script returned an invalid value."
+                             + " Please contact your teacher."),
+                "context": {},
+                "sandboxerr": ("Grader script did not return a valid integer on stdout, received:\n"
+                               + (stdout if stdout else "[NOTHING]"))
             }
-
         except Exception as e: #Unknown error
             response = {
-                'feedback': ("Erreur lors de l'évaluation de votre "
-                    + "réponse, merci de contacter votre professeur."),
-                'error': traceback.format_exc(),
-                'grade': -5,
-                'other': [],
+                "id": self.envid,
+                "sandbox_url": self.sandbox_url,
+                "status": SandboxErrCode.UNKNOWN,
+                "grade": -1,
+                "stderr": self.get_stderr(),
+                "feedback": ("Execution of the evaluating script failed due to an unkwown error."
+                             + " Please contact your teacher."),
+                "context": {},
+                "sandboxerr": "An unknown error occured:\n" + traceback.format_exc()
             }
-            logger.error(
-                "Couldn't kill docker <"
-               + str(self.docker.id) + " - " + str(self.docker.name) + "> :\n"
-               + traceback.format_exc()
-            )
+            logger.exception("An unknown exception occured during eval of env %s:" % self.envid)
         
         finally:
-            try:
-                self.docker.kill()
-            except:
-                logger.error(
-                    "Couldn't kill docker <"
-                   + str(self.docker.id) + " - " + str(self.docker.name) + "> :\n"
-                   + traceback.format_exc()
-                )
-                   
+            threading.Thread(target=self.kill_docker).start()
             
-        return json.dumps(response)
+        return response
