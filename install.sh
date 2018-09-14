@@ -32,6 +32,10 @@ pip3 install wheel || { echo>&2 "ERROR: pip3 install wheel failed" ; exit 1; }
 pip3 install -r requirements.txt || { echo>&2 "ERROR: pip3 install -r requirements.txt failed" ; exit 1; }
 echo "Done !"
 
+#Creating needed directory
+if [ ! -d "tmp" ]; then
+    mkdir tmp || { echo>&2 "ERROR: Can't create ./tmp/" ; exit 1; }
+fi
 
 #Building docker
 echo ""

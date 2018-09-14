@@ -23,7 +23,8 @@ SECRET_KEY = '+61drt2^c32qp)knvy32m*xm*ew=po%f8a9l!bp$kd7mz3(109'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['pl-sandbox.u-pem.fr', '127.0.0.1']
+
+ALLOWED_HOSTS = ['127.0.0.1']
 
 
 # Application definition
@@ -153,3 +154,9 @@ def CREATE_DOCKER():
         mem_limit=DOCKER_MEM_LIMIT,
         memswap_limit=DOCKER_MEMSWAP_LIMIT
     )
+
+
+try:
+    from pl_sandbox.config import *
+except:
+    pass
