@@ -3,5 +3,6 @@
 class GraderError(Exception):
     pass
 
+
 class ContextNotFoundError(Exception):
     pass

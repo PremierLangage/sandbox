@@ -21,8 +21,7 @@ SECRET_KEY = '+61drt2^c32qp)knvy32m*xm*ew=po%f8a9l!bp$kd7mz3(109'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-
-ALLOWED_HOSTS = ['127.0.0.1']
+ALLOWED_HOSTS = ['pl-sandbox.u-pem.fr', '127.0.0.1']
 
 
 # Application definition
@@ -70,7 +69,8 @@ LOGGING = {
     },
     'formatters': {
         'verbose': {
-            'format': '[%(asctime)-15s] %(levelname)s -- File: %(pathname)s line n°%(lineno)d -- %(message)s',
+            'format': '[%(asctime)-15s] %(levelname)s -- '
+                       'File: %(pathname)s line n°%(lineno)d -- %(message)s',
             'datefmt': '%Y/%m/%d %H:%M:%S'
         },
         'simple': {
@@ -100,7 +100,7 @@ LOGGING = {
         }
     },
     'loggers': {
-        '':{
+        '': {
             'handlers': ['console', 'syslog', 'mail_admins'],
             'level': 'INFO',
         },
@@ -134,11 +134,15 @@ DEL_TEST_ENV_AFTER = 7
 
 
 # Docker parameters
+# ENV_VAR - (dic) Environment variables to set inside the container, as a dictionary.
+# MEM_LIMIT - (str) Memory limit. String with a units identification char (13b, 12k, 14m, 1g) min is 4m.
+# MEMSWAP_LIMIT - (str) See https://docs.docker.com/engine/admin/resource_constraints/#--memory-swap-details
+# CPUSET_CPUS - (str) CPUs in which to allow execution ("0-3", "0,1").
 DOCKER_IMAGE = "pl:base"
-DOCKER_ENV_VAR = {}   #(dic) Environment variables to set inside the container, as a dictionary.
-DOCKER_MEM_LIMIT = "10m"  #(str) Memory limit. String with a units identification char (13b, 12k, 14m, 1g) min is 4m.
-DOCKER_MEMSWAP_LIMIT = 0  #(str) See https://docs.docker.com/engine/admin/resource_constraints/#--memory-swap-details
-DOCKER_CPUSET_CPUS = "0"  #(str) CPUs in which to allow execution ("0-3", "0,1").
+DOCKER_ENV_VAR = {}
+DOCKER_MEM_LIMIT = "10m"
+DOCKER_MEMSWAP_LIMIT = 0
+DOCKER_CPUSET_CPUS = "0"
 
 # Docker creating function
 def CREATE_DOCKER():
@@ -152,9 +156,3 @@ def CREATE_DOCKER():
         mem_limit=DOCKER_MEM_LIMIT,
         memswap_limit=DOCKER_MEMSWAP_LIMIT
     )
-
-
-try:
-    from pl_sandbox.config import *
-except:
-    pass

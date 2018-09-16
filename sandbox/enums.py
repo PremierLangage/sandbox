@@ -9,4 +9,3 @@ class SandboxErrCode(IntEnum):
     TIMEOUT = -2
     CONTEXT_NOT_FOUND = -3
     GRADER_NOT_INT = -4
-    
