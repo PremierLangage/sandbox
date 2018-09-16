@@ -1,6 +1,6 @@
 # coding: utf-8
 
-import json, os, tarfile, uuid, time, logging, traceback, threading, tempfile, gzip, io, shutil
+import json, os, tarfile, time, logging, traceback, threading, tempfile, gzip, io, shutil
 
 import timeout_decorator
 from django.conf import settings
@@ -102,18 +102,14 @@ class Executor:
         """Kill the docker."""
         try:
             self.docker.kill()
-        except:
+        except Exception:
             logger.error(
                 "Couldn't kill docker "
                + "<" + str(self.docker.id) + " - " + str(self.docker.name) + "> :\n"
                + traceback.format_exc()
             )
-    
-    
-    def get_env_and_kill(self):
-        raise NotImplementedError
-    
-    
+
+
     def get_context(self):
         raise NotImplementedError
     
@@ -294,7 +290,7 @@ class Evaluator(Executor):
                 "context": self.get_context() if not exit_code else {},
                 "sandboxerr": "",
             }
-        except timeout_decorator.TimeoutError as e:
+        except timeout_decorator.TimeoutError:
             response = {
                 "id": self.envid,
                 "sandbox_url": self.sandbox_url,
@@ -306,7 +302,7 @@ class Evaluator(Executor):
                 "sandboxerr": ("Execution of the evaluating script timed out after " 
                                + str(self.timeout) + " seconds.")
             }
-        except GraderError as e:
+        except GraderError:
             response = {
                 "id": self.envid,
                 "sandbox_url": self.sandbox_url,
@@ -319,7 +315,7 @@ class Evaluator(Executor):
                 "sandboxerr": ("Grader script did not return a valid integer on stdout, received:\n"
                                + (stdout if stdout else "[NOTHING]"))
             }
-        except Exception as e: #Unknown error
+        except Exception: #Unknown error
             response = {
                 "id": self.envid,
                 "sandbox_url": self.sandbox_url,

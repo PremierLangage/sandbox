@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #Checking if python >= 3.5 is installed
 if ! hash python3; then
     echo "ERROR: Python >= 3.5 should be installed."
