@@ -1,5 +1,3 @@
-# coding: utf-8
-
 import json, os, tarfile, time, logging, traceback, threading, tempfile, gzip, io, shutil
 
 import timeout_decorator
@@ -310,8 +308,6 @@ class Evaluator(Executor):
                 "sandboxerr": "An unknown error occured:\n" + traceback.format_exc()
             }
             logger.exception("An unknown exception occured during eval of env %s:" % self.envid)
-
         finally:
             threading.Thread(target=self.kill_docker).start()
-
         return response
