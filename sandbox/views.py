@@ -7,11 +7,10 @@
 #  Last Modified: 2017-09-30
 
 
-import os, time, shutil, logging, uuid, json, traceback
+import os, time, logging, uuid, json, traceback
 from distutils.version import StrictVersion
 
 from django.conf import settings
-from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, Http404, HttpResponseBadRequest
 from django.views.generic import View
 from django.urls import reverse
@@ -24,16 +23,17 @@ logger = logging.getLogger(__name__)
 
 
 class IndexView(View):
-    """Check wether the sandbox can execute a request according to the version."""
     
-    def head(self, request):
-        logger.info("Head request received from '" + request.META['REMOTE_ADDR'] + "'")
-        
-        if 'version' not in request.GET:
+    def post(self, request):
+        """Check wether the sandbox can execute a request according to the version."""
+        logger.info("POST request received from '" + request.META['REMOTE_ADDR'] + "'")
+
+        version = request.GET.POST('version')
+
+        if not version:
             return HttpResponseBadRequest("Missing parameter 'version'")
         
         try:
-            version = request.GET.get('version')
             if StrictVersion(settings.SANDBOX_VERSION) < StrictVersion(version):
                 return HttpResponse("Sandbox is out of date", status=406)
             if settings.SANDBOX_VERSION[0] != version[0]:
@@ -48,9 +48,9 @@ class IndexView(View):
 
 
 class VersionView(View):
-    """Return the version of the sandbox."""
     
     def get(self, request):
+        """Return the version of the sandbox."""
         logger.info("Version request received from '" + request.META['REMOTE_ADDR'] + "'")
         return HttpResponse('{"version": ' + settings.SANDBOX_VERSION + '}', status=200)
 
@@ -60,7 +60,9 @@ class EnvView(View):
     """Allow to download an environment for testings purpose."""
     
     def head(self, request, env):
-        logger.info("Env head request received from '" + request.META['REMOTE_ADDR'] + "' with ID '" + env + "'")
+        """Return status 204 if env was found, 404 if not."""
+        logger.info("Env head request received from '" + request.META['REMOTE_ADDR']
+                    + "' with ID '" + env + "'")
         remove_outdated_env()
         
         path = os.path.join(settings.MEDIA_ROOT, env + '_built.tgz')
@@ -73,7 +75,9 @@ class EnvView(View):
     
     
     def get(self, request, env):
-        logger.info("Env get request received from '" + request.META['REMOTE_ADDR'] + "' with ID '" + env + "'")
+        """Return the environment, status 404 if the environment could not be found."""
+        logger.info("Env get request received from '" + request.META['REMOTE_ADDR']
+                    + "' with ID '" + env + "'")
         remove_outdated_env()
         
         path = os.path.join(settings.MEDIA_ROOT, env + '_built.tgz')
@@ -98,9 +102,10 @@ class EnvView(View):
 class BuildView(View):
     
     def post(self, request):
+        """Build an environment with the content of request. See swagger for more informations"""
+        logger.info("Build request received from '" + request.META['REMOTE_ADDR'] + "'")
+        env_uuid = uuid.uuid4()
         try:
-            logger.info("Build request received from '" + request.META['REMOTE_ADDR'] + "'")
-            env_uuid = uuid.uuid4()
             remove_outdated_env()
             
             test = request.POST.get('test')
@@ -135,6 +140,7 @@ class BuildView(View):
 class EvalView(View):
     
     def post(self, request, env):
+        """Evaluate an answer inside env. See swagger for more information."""
         try:
             logger.info("Evaluate post request received from '" + request.META['REMOTE_ADDR'] + "'")
             remove_outdated_env()
@@ -146,15 +152,16 @@ class EvalView(View):
             path = os.path.join(settings.MEDIA_ROOT, env + '_built.tgz')
             if not os.path.isfile(path):
                 if os.path.isfile(os.path.join(settings.MEDIA_ROOT, env + ".tgz")):
-                    # If the not built environment exists, the built one is probably being saved by
-                    # another thread, 1 seconds should be enough for it to finish if that's the case.
+                    # If the unbuilt environment exists, the built one is probably being saved by
+                    # another thread, 1 sec should be enough for it to finish if that's the case.
                     time.sleep(1)
                     if not os.path.isfile(path):
                         raise Http404("Environment with id '" + env + "' not found")
                 else:
                     raise Http404("Environment with id '" + env + "' not found")
-            
-            response = Evaluator(path, request.build_absolute_uri(reverse("sandbox:index")), answers).execute()
+
+            url = request.build_absolute_uri(reverse("sandbox:index"))
+            response = Evaluator(path, url, answers).execute()
         except Exception:  # Unknown error
             response = {
                 "id": env,
