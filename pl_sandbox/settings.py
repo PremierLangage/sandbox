@@ -10,7 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
-import os, docker
+import os, docker, logging
 
 from pl_sandbox.testing import DatabaselessTestRunner
 
@@ -142,7 +142,14 @@ DOCKER_MEM_LIMIT = "10m"  #(str) Memory limit. String with a units identificatio
 DOCKER_MEMSWAP_LIMIT = 0  #(str) See https://docs.docker.com/engine/admin/resource_constraints/#--memory-swap-details
 DOCKER_CPUSET_CPUS = "0"  #(str) CPUs in which to allow execution ("0-3", "0,1").
 
-# Docker creating function
+try:
+    from pl_sandbox.config import *
+except:
+    logger = logging.getLogger(__name__)
+    logger.exception("No config file found.")
+    pass
+
+ # Docker creating function
 def CREATE_DOCKER():
     return docker.from_env().containers.run(
         DOCKER_IMAGE,
@@ -154,9 +161,3 @@ def CREATE_DOCKER():
         mem_limit=DOCKER_MEM_LIMIT,
         memswap_limit=DOCKER_MEMSWAP_LIMIT
     )
-
-
-try:
-    from pl_sandbox.config import *
-except:
-    pass
