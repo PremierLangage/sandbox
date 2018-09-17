@@ -12,8 +12,6 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 
 import os, docker, logging
 
-from pl_sandbox.testing import DatabaselessTestRunner
-
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -23,8 +21,7 @@ SECRET_KEY = '+61drt2^c32qp)knvy32m*xm*ew=po%f8a9l!bp$kd7mz3(109'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-
-ALLOWED_HOSTS = ['127.0.0.1']
+ALLOWED_HOSTS = ['pl-sandbox.u-pem.fr', '127.0.0.1']
 
 
 # Application definition
@@ -54,11 +51,11 @@ TEST_RUNNER = 'pl_sandbox.testing.DatabaselessTestRunner'
 # Password validation
 AUTH_PASSWORD_VALIDATORS = []
 
-#Write email in console instead of sending it if DEBUG is set to True
+# Write email in console instead of sending it if DEBUG is set to True
 if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-#Logger information
+# Logger information
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -72,7 +69,8 @@ LOGGING = {
     },
     'formatters': {
         'verbose': {
-            'format': '[%(asctime)-15s] %(levelname)s -- File: %(pathname)s line n°%(lineno)d -- %(message)s',
+            'format': '[%(asctime)-15s] %(levelname)s -- '
+                      'File: %(pathname)s line n°%(lineno)d -- %(message)s',
             'datefmt': '%Y/%m/%d %H:%M:%S'
         },
         'simple': {
@@ -102,7 +100,7 @@ LOGGING = {
         }
     },
     'loggers': {
-        '':{
+        '': {
             'handlers': ['console', 'syslog', 'mail_admins'],
             'level': 'INFO',
         },
@@ -136,11 +134,16 @@ DEL_TEST_ENV_AFTER = 7
 
 
 # Docker parameters
+# ENV_VAR - (dic) Environment variables to set inside the container, as a dictionary.
+# MEM_LIMIT - (str) Memory limit. String with a units identification char (13b, 12k, 14m, 1g)
+#                   min is 4m.
+# MEMSWAP_LIMIT - (str) https://docs.docker.com/engine/admin/resource_constraints/
+# CPUSET_CPUS - (str) CPUs in which to allow execution ("0-3", "0,1").
 DOCKER_IMAGE = "pl:base"
-DOCKER_ENV_VAR = {}   #(dic) Environment variables to set inside the container, as a dictionary.
-DOCKER_MEM_LIMIT = "10m"  #(str) Memory limit. String with a units identification char (13b, 12k, 14m, 1g) min is 4m.
-DOCKER_MEMSWAP_LIMIT = 0  #(str) See https://docs.docker.com/engine/admin/resource_constraints/#--memory-swap-details
-DOCKER_CPUSET_CPUS = "0"  #(str) CPUs in which to allow execution ("0-3", "0,1").
+DOCKER_ENV_VAR = {}
+DOCKER_MEM_LIMIT = "10m"
+DOCKER_MEMSWAP_LIMIT = 0
+DOCKER_CPUSET_CPUS = "0"
 
 try:
     from pl_sandbox.config import *
