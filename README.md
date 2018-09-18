@@ -9,8 +9,7 @@
 ### Installation
 
 - Run server/serverpl/install.sh
-- create directories *pl-sandbox/../tmp*
-- Run the server (*python3 manage.py runserver*)
+- Run the server (*python3 manage.py runserver [port]*)
 
 
 # Logging
