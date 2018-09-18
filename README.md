@@ -17,8 +17,10 @@
 Default facility used for syslog is local6.
 To enable logging on a custom log file, you should created a new file ending by .conf in '/etc/rsyslog.d/' containing:
 
-  local6.*	/var/log/sandbox.log # 'replace sandbox.log with whatever you want'
-  $EscapeControlCharactersOnReceive off
-  & stop
+```
+local6.*	/var/log/sandbox.log # 'replace sandbox.log with whatever you want'
+$EscapeControlCharactersOnReceive off
+& stop
+```
 
 And restart syslog and rsyslog services
