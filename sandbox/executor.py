@@ -53,9 +53,23 @@ class Executor:
         with open(self.envpath, 'rb') as tar:
             self.docker.put_archive("/home/docker/", tar.read())
         logger.info("move_env_to_docker() took " + str(time.time() - start))
-
+        
+    def get_env_from_docker_DR(self,suffix):
+        """
+        """
+        path, ext = os.path.splitext(os.path.basename(self.envpath))
+        path = path + suffix
+        tar_data,tar_stats = self.docker.get_archive('/home/docker/')
+        targz_path = os.path.join(settings.MEDIA_ROOT, path + ".tgz")
+        with gzip.open(targz_path, 'wb') as f_out:
+                shutil.copyfileobj(tar_data, f_out)
+               
     def get_env_from_docker(self, suffix):
         """Retrieve the environment from the docker and write it to envpath"""
+        # FIXME je comprend pas la commande get archive prend un répertoire et le met dans une archive 
+        # pourquoi le déplacer avant  ?? 
+        # pourquoi 
+        
         path, ext = os.path.splitext(os.path.basename(self.envpath))
         path = path + suffix
         self.docker.exec_run("mkdir " + path)
