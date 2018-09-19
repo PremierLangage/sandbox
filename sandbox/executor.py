@@ -42,14 +42,17 @@ class Executor:
         self.envpath = envpath
         self.sandbox_url = sandbox_url
         self.envid = os.path.splitext(os.path.basename(envpath))[0]
+        start = time.time()
         self.docker = settings.CREATE_DOCKER()
+        logger.info("CREATE DOCKER() took " + str(time.time() - start))
         self.timeout = timeout
 
     def move_env_to_docker(self):
         """Send the tar to the Docker and untar it inside the Docker"""
+        start = time.time()
         with open(self.envpath, 'rb') as tar:
             self.docker.put_archive("/home/docker/", tar.read())
-        self.docker.exec_run("tar -xzf /home/docker/")
+        logger.info("move_env_to_docker() took " + str(time.time() - start))
 
     def get_env_from_docker(self, suffix):
         """Retrieve the environment from the docker and write it to envpath"""
@@ -74,7 +77,9 @@ class Executor:
 
     def get_file(self, path):
         """Return the content of /home/docker/<path> if found, an empty string otherwise."""
+        start = time.time()
         exit_code, stdout = self.docker.exec_run("cat /home/docker/" + path)
+        logger.info("get_file() took " + str(time.time() - start))
         return stdout.decode() if not exit_code else ""
 
     def get_stdout(self):
@@ -119,7 +124,9 @@ class Builder(Executor):
     def get_context(self):
         """Return content of BUILT_CONTEXT_FILE as a dictionnary (file must be a valid json).
         Raises ContextNotFoundError if the file could not be found."""
+        start = time.time()
         exit_code, out = self.docker.exec_run("cat /home/docker/" + BUILT_CONTEXT_FILE)
+        logger.info("get_context() took " + str(time.time() - start))
         if exit_code:
             raise ContextNotFoundError
         return json.loads(out.decode())
@@ -207,6 +214,7 @@ class Evaluator(Executor):
         return json.loads(out.decode())
 
     def add_answer_to_env(self):
+        start = time.time()
         with tempfile.NamedTemporaryFile(mode='w+') as tmp:
             tmp.write(self.answers)
             tmp.seek(0)
@@ -225,6 +233,7 @@ class Evaluator(Executor):
             stream.seek(0)
             with gzip.open(self.envpath, "wb") as g:
                 g.write(stream.read())
+        logger.info("add_answer_to_env() took " + str(time.time() - start))
 
     @timeout_decorator.timeout(use_class_attribute=True, use_signals=False)
     def evaluate(self):

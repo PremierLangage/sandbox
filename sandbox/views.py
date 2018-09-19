@@ -103,6 +103,7 @@ class BuildView(View):
     
     def post(self, request):
         """Build an environment with the content of request. See swagger for more informations"""
+        start = time.time()
         logger.info("Build request received from '" + request.META['REMOTE_ADDR'] + "'")
         env_uuid = uuid.uuid4()
         try:
@@ -121,7 +122,7 @@ class BuildView(View):
             with open(os.path.join(path), 'wb') as f:
                 f.write(environment.read())
             del environment
-            
+            logger.info("POST BUILD TOOK " + str(time.time() - start))
             response = Builder(path, request.build_absolute_uri(reverse("sandbox:index"))).execute()
         except Exception:  # Unknown error
             response = {
@@ -142,6 +143,7 @@ class EvalView(View):
     def post(self, request, env):
         """Evaluate an answer inside env. See swagger for more information."""
         try:
+            start = time.time()
             logger.info("Evaluate post request received from '" + request.META['REMOTE_ADDR'] + "'")
             remove_outdated_env()
             
@@ -161,6 +163,7 @@ class EvalView(View):
                     raise Http404("Environment with id '" + env + "' not found")
 
             url = request.build_absolute_uri(reverse("sandbox:index"))
+            logger.info("POST EVAL TOOK " + str(time.time() - start))
             response = Evaluator(path, url, answers).execute()
         except Exception:  # Unknown error
             response = {
