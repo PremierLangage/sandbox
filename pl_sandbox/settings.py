@@ -10,23 +10,18 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
-import os, docker
-import pl_sandbox.config as CONF
-
-from pl_sandbox.testing import DatabaselessTestRunner
-
-DEPLOY = True
+import os, docker, logging
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '+61drt2^c32qp)knvy32m*xm*ew=po%f8a9l!bp$kd7mz3(109' if not DEPLOY else CONF.SECRET_KEY
+SECRET_KEY = '+61drt2^c32qp)knvy32m*xm*ew=po%f8a9l!bp$kd7mz3(109'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = not DEPLOY
+DEBUG = True
 
-ALLOWED_HOSTS = ['pl-sandbox.u-pem.fr'] if not DEPLOY else CONF.ALLOWED_HOSTS
+ALLOWED_HOSTS = ['pl-sandbox.u-pem.fr', '127.0.0.1']
 
 
 # Application definition
@@ -56,11 +51,11 @@ TEST_RUNNER = 'pl_sandbox.testing.DatabaselessTestRunner'
 # Password validation
 AUTH_PASSWORD_VALIDATORS = []
 
-#Write email in console instead of sending it if DEBUG is set to True
+# Write email in console instead of sending it if DEBUG is set to True
 if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
-#Logger information
+# Logger information
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -74,7 +69,8 @@ LOGGING = {
     },
     'formatters': {
         'verbose': {
-            'format': '[%(asctime)-15s] %(levelname)s -- File: %(pathname)s line n°%(lineno)d -- %(message)s',
+            'format': '[%(asctime)-15s] %(levelname)s -- '
+                      'File: %(pathname)s line n°%(lineno)d -- %(message)s',
             'datefmt': '%Y/%m/%d %H:%M:%S'
         },
         'simple': {
@@ -104,11 +100,7 @@ LOGGING = {
         }
     },
     'loggers': {
-        'django':{
-            'handlers': ['console', 'syslog', 'mail_admins'],
-            'level': 'INFO',
-        },
-        'sandbox':{
+        '': {
             'handlers': ['console', 'syslog', 'mail_admins'],
             'level': 'INFO',
         },
@@ -129,29 +121,46 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 STATIC_URL = '/static/'
 
-MEDIA_ROOT = os.path.join(BASE_DIR, '../tmp')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'tmp')
 MEDIA_URL = '/tmp/'
 
 
+# Sandbox parameters
+# DEL_ENV_AFTER: number of days before a normal environment should be deleted
+# DEL_TEST_ENV_AFTER: number of days before a test environment should be deleted
+SANDBOX_VERSION = "1.0.0"
+DEL_ENV_AFTER = 12*30
+DEL_TEST_ENV_AFTER = 7
+
+
 # Docker parameters
-image = "pl:base"
-environment = {}   #(dic) Environment variables to set inside the container, as a dictionary.
-mem_limit = "50m"  #(str) Memory limit. String with a units identification char (13b, 12k, 14m, 1g).
-memswap_limit = 0  #(str) See https://docs.docker.com/engine/admin/resource_constraints/#--memory-swap-details
-cpuset_cpus = "0"  #(str) CPUs in which to allow execution ("0-3", "0,1").
+# ENV_VAR - (dic) Environment variables to set inside the container, as a dictionary.
+# MEM_LIMIT - (str) Memory limit. String with a units identification char (13b, 12k, 14m, 1g)
+#                   min is 4m.
+# MEMSWAP_LIMIT - (str) https://docs.docker.com/engine/admin/resource_constraints/
+# CPUSET_CPUS - (str) CPUs in which to allow execution ("0-3", "0,1").
+DOCKER_IMAGE = "pl:base"
+DOCKER_ENV_VAR = {}
+DOCKER_MEM_LIMIT = "10m"
+DOCKER_MEMSWAP_LIMIT = 0
+DOCKER_CPUSET_CPUS = "0"
 
+try:
+    from pl_sandbox.config import *
+except:
+    logger = logging.getLogger(__name__)
+    logger.exception("No config file found.")
+    pass
 
-# Docker creating function
-if not DEPLOY:
-    def CREATE_DOCKER():
-        return docker.from_env().containers.run(
-            image,
-            detach=True,
-            environment=environment,
-            auto_remove=True,
-            tty=True,
-            cpuset_cpus=cpuset_cpus,
-            mem_limit=mem_limit, memswap_limit=memswap_limit
-        )
-else:
-    CREATE_DOCKER = CONF.CREATE_DOCKER
+ # Docker creating function
+def CREATE_DOCKER():
+    return docker.from_env().containers.run(
+        DOCKER_IMAGE,
+        detach=True,
+        environment=DOCKER_ENV_VAR,
+        auto_remove=True,
+        tty=True,
+        cpuset_cpus=DOCKER_CPUSET_CPUS,
+        mem_limit=DOCKER_MEM_LIMIT,
+        memswap_limit=DOCKER_MEMSWAP_LIMIT
+    )

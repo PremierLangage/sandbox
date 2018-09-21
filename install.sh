@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #Checking if python >= 3.5 is installed
 if ! hash python3; then
     echo "ERROR: Python >= 3.5 should be installed."
@@ -10,6 +11,12 @@ if [ "$ver" -lt "35" ]; then
     exit 1
 fi
 echo "Python >= 3.5: OK !"
+
+
+#Creating needed directory
+if [ ! -d "tmp" ]; then
+    mkdir tmp || { echo>&2 "ERROR: Can't create ./tmp/" ; exit 1; }
+fi
 
 #Checking if Docker is installed
 command -v docker >/dev/null 2>&1 || { echo >&2 "ERROR: Docker should be installed (see: https://docs.docker.com/engine/installation/linux/docker-ce/debian/)."; exit 1; }
@@ -26,6 +33,10 @@ pip3 install wheel || { echo>&2 "ERROR: pip3 install wheel failed" ; exit 1; }
 pip3 install -r requirements.txt || { echo>&2 "ERROR: pip3 install -r requirements.txt failed" ; exit 1; }
 echo "Done !"
 
+#Creating needed directory
+if [ ! -d "tmp" ]; then
+    mkdir tmp || { echo>&2 "ERROR: Can't create ./tmp/" ; exit 1; }
+fi
 
 #Building docker
 echo ""

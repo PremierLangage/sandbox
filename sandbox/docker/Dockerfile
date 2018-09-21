@@ -9,7 +9,7 @@ RUN apt-get install -y --no-install-recommends sudo locales wget build-essential
 
 RUN wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py
 RUN python3 /tmp/get-pip.py
-RUN pip3 install jinja2
+RUN pip3 install jinja2 jsonpickle
 
 # Adding sftp lib folder to pythonpath
 ENV PYTHONPATH /var/lib/upem:$PYTHONPATH
