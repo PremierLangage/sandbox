@@ -44,7 +44,7 @@ class Executor:
         self.envid = os.path.splitext(os.path.basename(envpath))[0]
         start = time.time()
         self.docker = settings.CREATE_DOCKER()
-        logger.info("CREATE DOCKER() took " + str(time.time() - start))
+        logger.debug("CREATE DOCKER() took " + str(time.time() - start))
         self.timeout = timeout
 
     
@@ -53,7 +53,7 @@ class Executor:
         start = time.time()
         with open(self.envpath, 'rb') as tar:
             self.docker.put_archive("/home/docker/", tar.read())
-        logger.info("move_env_to_docker() took " + str(time.time() - start))
+        logger.debug("move_env_to_docker() took " + str(time.time() - start))
         
     
     def get_env_from_docker_DR(self,suffix):
@@ -94,7 +94,7 @@ class Executor:
         """Return the content of /home/docker/<path> if found, an empty string otherwise."""
         start = time.time()
         exit_code, stdout = self.docker.exec_run("cat /home/docker/" + path)
-        logger.info("get_file() took " + str(time.time() - start))
+        logger.debug("get_file() took " + str(time.time() - start))
         return stdout.decode() if not exit_code else ""
 
     
@@ -162,14 +162,14 @@ class Builder(Executor):
             + " 2> " + STDERR_FILE + '\n" > grader.sh'
             + " && chmod a+x grader.sh"
         ])
-        logger.info("make_script() took " + str(time.time() - start))
+        logger.debug("make_script() took " + str(time.time() - start))
     
     def get_context(self):
         """Return content of BUILT_CONTEXT_FILE as a dictionnary (file must be a valid json).
         Raises ContextNotFoundError if the file could not be found."""
         start = time.time()
         exit_code, out = self.docker.exec_run("cat /home/docker/" + BUILT_CONTEXT_FILE)
-        logger.info("get_context() took " + str(time.time() - start))
+        logger.debug("get_context() took " + str(time.time() - start))
         if exit_code:
             raise ContextNotFoundError
         return json.loads(out.decode())
@@ -185,7 +185,7 @@ class Builder(Executor):
                + "DOCKER_MEM_LIMIT=" + str(settings.DOCKER_MEM_LIMIT) + " and "
                + "DOCKER_CPUSET_CPUS=" + str(settings.DOCKER_CPUSET_CPUS)
                + " took " + str(time.time() - start) + " secondes.")
-        logger.info(msg)
+        logger.debug(msg)
         return ret
 
     
@@ -276,7 +276,7 @@ class Evaluator(Executor):
             stream.seek(0)
             with gzip.open(self.envpath, "wb") as g:
                 g.write(stream.read())
-        logger.info("add_answer_to_env() took " + str(time.time() - start))
+        logger.debug("add_answer_to_env() took " + str(time.time() - start))
 
     @timeout_decorator.timeout(use_class_attribute=True, use_signals=False)
     
@@ -290,7 +290,7 @@ class Evaluator(Executor):
                + "DOCKER_MEM_LIMIT=" + str(settings.DOCKER_MEM_LIMIT) + " and "
                + "DOCKER_CPUSET_CPUS=" + str(settings.DOCKER_CPUSET_CPUS)
                + " took " + str(time.time() - start) + " secondes.")
-        logger.info(msg)
+        logger.debug(msg)
         return ret
 
     

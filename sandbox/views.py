@@ -122,8 +122,9 @@ class BuildView(View):
             with open(os.path.join(path), 'wb') as f:
                 f.write(environment.read())
             del environment
-            logger.info("POST BUILD TOOK " + str(time.time() - start))
+            logger.debug("POST BUILD took " + str(time.time() - start))
             response = Builder(path, request.build_absolute_uri(reverse("sandbox:index"))).execute()
+            logger.debug("Total build took " + str(time.time() - start))
         except Exception:  # Unknown error
             response = {
                 "id": str(env_uuid),
@@ -163,8 +164,9 @@ class EvalView(View):
                     raise Http404("Environment with id '" + env + "' not found")
 
             url = request.build_absolute_uri(reverse("sandbox:index"))
-            logger.info("POST EVAL TOOK " + str(time.time() - start))
+            logger.debug("POST EVAL TOOK " + str(time.time() - start))
             response = Evaluator(path, url, answers).execute()
+            logger.debug("Total eval took " + str(time.time() - start))
         except Exception:  # Unknown error
             response = {
                 "id": env,

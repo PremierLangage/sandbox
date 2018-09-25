@@ -90,19 +90,28 @@ LOGGING = {
             'class': 'logging.handlers.SysLogHandler',
             'facility': 'local6',
             'address': '/dev/log',
-            'formatter': 'verbose'
+            'formatter': 'verbose',
+            'filters': ['require_debug_false'],
+        },
+        'syslog_debug': {
+            'level': 'INFO',
+            'class': 'logging.handlers.SysLogHandler',
+            'facility': 'local6',
+            'address': '/dev/log',
+            'formatter': 'verbose',
+            'filters': ['require_debug_true'],
         },
         'mail_admins': {
-            'level': 'ERROR',
+            'level': 'WARNING',
             'class': 'django.utils.log.AdminEmailHandler',
             'include_html': True,
             'formatter': 'verbose'
         }
     },
     'loggers': {
-        '': {
-            'handlers': ['console', 'syslog', 'mail_admins'],
-            'level': 'INFO',
+        'sandbox': {
+            'handlers': ['console', 'syslog', 'mail_admins', 'syslog_debug'],
+            'level': 'DEBUG',
         },
     },
 }
