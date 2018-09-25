@@ -148,13 +148,13 @@ class Builder(Executor):
     def make_script(self):
         """Create 'builder.sh' and 'grader.sh' scripts."""
         start = time.time()
-        print(self.docker.exec_run([
+        self.docker.exec_run([
             "/bin/sh", "-c",
             'printf "#!/usr/bin/env bash\npython3 builder.py '
             + ' '.join([CONTEXT_FILE, BUILT_CONTEXT_FILE])
             + " 2> " + STDERR_FILE + '\n" > builder.sh'
             + " && chmod a+x builder.sh"
-        ]))
+        ])
         self.docker.exec_run([
             "/bin/sh", "-c",
             'printf "#!/usr/bin/env bash\npython3 grader.py '
