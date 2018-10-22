@@ -15,3 +15,6 @@ six==1.11.0
 -e git://github.com/qcoumes/timeout-decorator.git@828367848280bb12f77571fb589c92f0b1f8525f#egg=timeout_decorator
 urllib3==1.22
 websocket-client==0.47.0
+# The following should be in the dockerfile of exercices
+sympy
+mathplotlib
