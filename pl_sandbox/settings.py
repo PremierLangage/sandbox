@@ -94,7 +94,7 @@ LOGGING = {
             'filters': ['require_debug_false'],
         },
         'syslog_debug': {
-            'level': 'INFO',
+            'level': 'DEBUG',
             'class': 'logging.handlers.SysLogHandler',
             'facility': 'local6',
             'address': '/dev/log',
