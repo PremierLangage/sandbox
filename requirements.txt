@@ -1,7 +1,7 @@
 attrs==17.4.0
 certifi==2018.1.18
 chardet==3.0.4
-Django==2.0.4
+Django==2.0.8
 docker==3.2.1
 docker-pycreds==0.2.2
 idna==2.6
@@ -15,3 +15,6 @@ six==1.11.0
 -e git://github.com/qcoumes/timeout-decorator.git@828367848280bb12f77571fb589c92f0b1f8525f#egg=timeout_decorator
 urllib3==1.22
 websocket-client==0.47.0
+# The following should be in the dockerfile of exercices
+sympy
+mathplotlib
