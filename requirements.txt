@@ -18,3 +18,4 @@ websocket-client==0.47.0
 # The following should be in the dockerfile of exercices
 sympy
 mathplotlib
+psycopg2
