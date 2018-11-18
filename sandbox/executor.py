@@ -8,8 +8,8 @@ from sandbox.enums import SandboxErrCode
 
 logger = logging.getLogger(__name__)
 
-BUILD_TIMEOUT = 5
-EVAL_TIMEOUT = 5
+BUILD_TIMEOUT = 10
+EVAL_TIMEOUT = 10
 
 CONTEXT_FILE = "pl.json"
 BUILT_CONTEXT_FILE = "built_pl.json"
@@ -248,11 +248,10 @@ class Evaluator(Executor):
 
     
     def get_context(self):
-        """Return content of EVALUATED_CONTEXT_FILE as a dictionnary (file must be a valid json).
-        Raises ContextNotFoundError if the file could not be found."""
+        """Return content of EVALUATED_CONTEXT_FILE as a dictionnary (file must be a valid json)."""
         exit_code, out = self.docker.exec_run("cat /home/docker/" + EVALUATED_CONTEXT_FILE)
         if exit_code:
-            raise ContextNotFoundError
+            return {}
         return json.loads(out.decode())
 
     

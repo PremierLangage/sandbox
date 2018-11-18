@@ -1,7 +1,7 @@
 attrs==17.4.0
 certifi==2018.1.18
 chardet==3.0.4
-Django==2.0.8
+Django==2.1.0
 docker==3.2.1
 docker-pycreds==0.2.2
 idna==2.6
@@ -17,5 +17,5 @@ urllib3==1.22
 websocket-client==0.47.0
 # The following should be in the dockerfile of exercices
 sympy
-mathplotlib
+matplotlib
 psycopg2
