@@ -9,7 +9,7 @@
 ### Installation
 
 - Run server/serverpl/install.sh
-- (deprecated : premierlangage as it's own sandbox) Run the server (*python3 manage.py runserver [port]*)
+- (deprecated : premierlangage has its own sandbox) Run the server (*python3 manage.py runserver [port]*)
 - make visible with apache 
 
 
