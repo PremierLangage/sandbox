@@ -39,6 +39,8 @@ RUN    /etc/init.d/postgresql start &&\
 # Only local access
 RUN echo "local all  all     trust" >> /etc/postgresql/9.3/main/pg_hba.conf
 
+# ADD THE DATABASE FILES 
+
 
 
 # And add ``listen_addresses`` to ``/etc/postgresql/9.3/main/postgresql.conf``
