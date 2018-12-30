@@ -31,7 +31,7 @@ USER postgres
 #       allows the RUN command to span multiple lines.
 RUN    /etc/init.d/postgresql start &&\
     psql --command "CREATE USER docker WITH SUPERUSER PASSWORD 'docker';" &&\
-    createdb -O docker docker
+    createdb -O dockerid dockerpass
 
 # Adjust PostgreSQL configuration so that remote connections to the
 # database are possible.
@@ -41,6 +41,7 @@ RUN echo "local all  all     trust" >> /etc/postgresql/9.3/main/pg_hba.conf
 
 # ADD THE DATABASE FILES 
 
+psql -U dockerid dockerpass < dbexport.pgsql
 
 
 # And add ``listen_addresses`` to ``/etc/postgresql/9.3/main/postgresql.conf``
