@@ -8,8 +8,8 @@
 
 ### Installation
 
-- Run install.sh
-- Run the server (*python3 manage.py runserver [port]*)
+- Run `install.sh`
+- Run the server:  `python3 manage.py runserver [port]`
 
 
 ### Logging
