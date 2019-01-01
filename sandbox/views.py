@@ -10,7 +10,7 @@
 import json
 import logging
 import os
-import tarfile
+import threading
 import time
 import traceback
 import uuid
@@ -24,7 +24,7 @@ from django.views.generic import View
 from sandbox.container import ContainerWrapper
 from sandbox.enums import SandboxErrCode
 from sandbox.executor import Builder, Evaluator
-from sandbox.utils import remove_outdated_env
+from sandbox.utils import remove_outdated_env, get_env_and_reset
 
 
 logger = logging.getLogger(__name__)
@@ -73,7 +73,8 @@ class EnvView(View):
         """Return the environment, status 404 if the environment could not be found."""
         logger.info("Env get request received from '" + request.META['REMOTE_ADDR']
                     + "' with ID '" + env + "'")
-        remove_outdated_env()
+
+        threading.Thread(target=remove_outdated_env).start()
         
         path = os.path.join(settings.MEDIA_ROOT, env + '_built.tgz')
         if not os.path.isfile(path):
@@ -97,11 +98,14 @@ class EnvView(View):
 class BuildView(View):
     
     def post(self, request):
-        """Build an environment with the content of request. See swagger for more informations"""
+        """Build an environment with the content of request."""
         start = time.time()
         logger.info("Build request received from '" + request.META['REMOTE_ADDR'] + "'")
         env_uuid = uuid.uuid4()
         container = None
+        path = ""
+        
+        threading.Thread(target=remove_outdated_env).start()
         
         try:
             while True:
@@ -142,8 +146,9 @@ class BuildView(View):
             logger.exception("An unknown exception occured during build of env %s:" % str(env_uuid))
         
         finally:
-            if container is not None:
-                container.release()
+            threading.Thread(
+                target=get_env_and_reset, args=(container, path, "_built",)
+            ).start()
         
         return HttpResponse(json.dumps(response), status=200)
 
@@ -152,10 +157,12 @@ class BuildView(View):
 class EvalView(View):
     
     def post(self, request, env):
-        """Evaluate an answer inside env. See swagger for more information."""
+        """Evaluate an answer inside env."""
         start = time.time()
         logger.info("Evaluate post request received from '" + request.META['REMOTE_ADDR'] + "'")
         container = None
+
+        threading.Thread(target=remove_outdated_env).start()
         
         try:
             while True:
@@ -172,18 +179,20 @@ class EvalView(View):
             answers = request.POST.get('answers')
             if not answers:
                 return HttpResponseBadRequest("Missing parameter 'answers'")
+            answers = json.loads(answers)
             
             path = os.path.join(settings.MEDIA_ROOT, env + '_built.tgz')
             if not os.path.isfile(path):
                 if os.path.isfile(os.path.join(settings.MEDIA_ROOT, env + ".tgz")):
                     # If the unbuilt environment exists, the built one is probably being saved by
-                    # another thread, 1 sec should be enough for it to finish if that's the case.
-                    time.sleep(1)
+                    # another thread, 0.5 sec should be enough for it to finish if that's the case.
+                    time.sleep(0.5)
                     if not os.path.isfile(path):
                         raise Http404("Environment with id '" + env + "' not found")
                 else:
                     raise Http404("Environment with id '" + env + "' not found")
-            
+
+            path = os.path.join(settings.MEDIA_ROOT, env) + "_built.tgz"
             url = request.build_absolute_uri(reverse("sandbox:index"))
             logger.debug("POST EVAL TOOK " + str(time.time() - start))
             response = Evaluator(container, path, url, answers).execute()
@@ -203,6 +212,6 @@ class EvalView(View):
             logger.exception("An unknown exception occured during eval of env %s:" % env)
         finally:
             if container is not None:
-                container.release()
+                threading.Thread(target=container.release).start()
         
         return HttpResponse(json.dumps(response), status=200)

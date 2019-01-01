@@ -80,6 +80,7 @@ class ContainerWrapper:
     def release(self):
         """Release this container."""
         if os.path.isdir(self.envpath):
+            self.container.exec_run(["/bin/sh", "-c", "rm * -Rf"])
             shutil.rmtree(self.envpath)
         os.makedirs(self.envpath)
         self._get_default_file()
