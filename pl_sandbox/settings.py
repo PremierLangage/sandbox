@@ -163,7 +163,7 @@ WAIT_FOR_CONTAINER_DURATION = 1.5
 #                          containers. To create these directory, a directory named after the
 #                          container's name is create in VOLUME_HOST.
 # DEFAULT_FILES    - (str) Where the default files (files present in each container cwd) are stored.
-DOCKER_COUNT = 10
+DOCKER_COUNT = 3
 DOCKER_IMAGE = "pl:base"
 DOCKER_ENV_VAR = {}
 DOCKER_MEM_LIMIT = "10m"
