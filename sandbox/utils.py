@@ -30,11 +30,10 @@ def get_env_from_docker(cw, envpath, suffix):
     """Retrieve the environment from the docker and write it to envpath."""
     path, ext = os.path.splitext(os.path.basename(envpath))
     path = os.path.join(settings.MEDIA_ROOT, path + suffix + ext)
-
+    
     with tarfile.open(path, "w|gz") as tar:
         for name in os.listdir(cw.envpath):
             tar.add(os.path.join(cw.envpath, name), arcname=name)
-
 
 
 

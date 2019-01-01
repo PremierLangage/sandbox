@@ -24,7 +24,7 @@ from django.views.generic import View
 from sandbox.container import ContainerWrapper
 from sandbox.enums import SandboxErrCode
 from sandbox.executor import Builder, Evaluator
-from sandbox.utils import remove_outdated_env, get_env_and_reset
+from sandbox.utils import get_env_and_reset, remove_outdated_env
 
 
 logger = logging.getLogger(__name__)
@@ -73,7 +73,7 @@ class EnvView(View):
         """Return the environment, status 404 if the environment could not be found."""
         logger.info("Env get request received from '" + request.META['REMOTE_ADDR']
                     + "' with ID '" + env + "'")
-
+        
         threading.Thread(target=remove_outdated_env).start()
         
         path = os.path.join(settings.MEDIA_ROOT, env + '_built.tgz')
@@ -161,7 +161,7 @@ class EvalView(View):
         start = time.time()
         logger.info("Evaluate post request received from '" + request.META['REMOTE_ADDR'] + "'")
         container = None
-
+        
         threading.Thread(target=remove_outdated_env).start()
         
         try:
@@ -191,7 +191,7 @@ class EvalView(View):
                         raise Http404("Environment with id '" + env + "' not found")
                 else:
                     raise Http404("Environment with id '" + env + "' not found")
-
+            
             path = os.path.join(settings.MEDIA_ROOT, env) + "_built.tgz"
             url = request.build_absolute_uri(reverse("sandbox:index"))
             logger.debug("POST EVAL TOOK " + str(time.time() - start))

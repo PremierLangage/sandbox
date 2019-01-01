@@ -203,6 +203,7 @@ def CREATE_CONTAINER(name):
     )
 
 
+
 print("Creating docker containers... ", end="")
 sys.stdout.flush()
 # Kill stopped container created from DOCKER_IMAGE
