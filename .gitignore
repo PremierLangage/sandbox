@@ -3,6 +3,9 @@ src/
 pl_sandbox/config.py
 tmp/
 .idea
+containers_env/
+environments/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

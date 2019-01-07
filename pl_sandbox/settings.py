@@ -10,7 +10,15 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.11/ref/settings/
 """
 
-import os, docker, logging
+import logging
+import os
+import shutil
+import sys
+
+import docker
+
+from sandbox.container import ContainerWrapper
+
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -22,7 +30,6 @@ SECRET_KEY = '+61drt2^c32qp)knvy32m*xm*ew=po%f8a9l!bp$kd7mz3(109'
 DEBUG = True
 
 ALLOWED_HOSTS = ['pl-sandbox.u-pem.fr', '127.0.0.1']
-
 
 # Application definition
 INSTALLED_APPS = [
@@ -41,7 +48,6 @@ ROOT_URLCONF = 'pl_sandbox.urls'
 
 WSGI_APPLICATION = 'pl_sandbox.wsgi.application'
 
-
 # Database
 DATABASES = {}
 
@@ -57,65 +63,64 @@ if DEBUG:
 
 # Logger information
 LOGGING = {
-    'version': 1,
+    'version'                 : 1,
     'disable_existing_loggers': False,
-    'filters': {
+    'filters'                 : {
         'require_debug_false': {
             '()': 'django.utils.log.RequireDebugFalse',
         },
-        'require_debug_true': {
+        'require_debug_true' : {
             '()': 'django.utils.log.RequireDebugTrue',
         },
     },
-    'formatters': {
+    'formatters'              : {
         'verbose': {
-            'format': '[%(asctime)-15s] %(levelname)s -- '
-                      'File: %(pathname)s line n°%(lineno)d -- %(message)s',
+            'format' : '[%(asctime)-15s] %(levelname)s -- '
+                       'File: %(pathname)s line n°%(lineno)d -- %(message)s',
             'datefmt': '%Y/%m/%d %H:%M:%S'
         },
-        'simple': {
-            'format': '[%(asctime)-15s] %(levelname)s -- %(message)s',
+        'simple' : {
+            'format' : '[%(asctime)-15s] %(levelname)s -- %(message)s',
             'datefmt': '%Y/%m/%d %H:%M:%S'
         },
     },
-    'handlers': {
-        'console': {
-            'level': 'DEBUG',
-            'filters': ['require_debug_true'],
-            'class': 'logging.StreamHandler',
+    'handlers'                : {
+        'console'     : {
+            'level'    : 'DEBUG',
+            'filters'  : ['require_debug_true'],
+            'class'    : 'logging.StreamHandler',
             'formatter': 'simple'
         },
-        'syslog': {
-            'level': 'INFO',
-            'class': 'logging.handlers.SysLogHandler',
-            'facility': 'local6',
-            'address': '/dev/log',
+        'syslog'      : {
+            'level'    : 'INFO',
+            'class'    : 'logging.handlers.SysLogHandler',
+            'facility' : 'local6',
+            'address'  : '/dev/log',
             'formatter': 'verbose',
-            'filters': ['require_debug_false'],
+            'filters'  : ['require_debug_false'],
         },
         'syslog_debug': {
-            'level': 'DEBUG',
-            'class': 'logging.handlers.SysLogHandler',
-            'facility': 'local6',
-            'address': '/dev/log',
+            'level'    : 'DEBUG',
+            'class'    : 'logging.handlers.SysLogHandler',
+            'facility' : 'local6',
+            'address'  : '/dev/log',
             'formatter': 'verbose',
-            'filters': ['require_debug_true'],
+            'filters'  : ['require_debug_true'],
         },
-        'mail_admins': {
-            'level': 'WARNING',
-            'class': 'django.utils.log.AdminEmailHandler',
+        'mail_admins' : {
+            'level'       : 'WARNING',
+            'class'       : 'django.utils.log.AdminEmailHandler',
             'include_html': True,
-            'formatter': 'verbose'
+            'formatter'   : 'verbose'
         }
     },
-    'loggers': {
+    'loggers'                 : {
         'sandbox': {
             'handlers': ['console', 'syslog', 'mail_admins', 'syslog_debug'],
-            'level': 'DEBUG',
+            'level'   : 'DEBUG',
         },
     },
 }
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/1.11/topics/i18n/
@@ -125,35 +130,50 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 STATIC_URL = '/static/'
 
-MEDIA_ROOT = os.path.join(BASE_DIR, 'tmp')
-MEDIA_URL = '/tmp/'
-
+# Exercise's environment
+MEDIA_ROOT = os.path.join(BASE_DIR, 'environments')
+MEDIA_URL = '/environments/'
+if not os.path.isdir(MEDIA_ROOT):
+    os.makedirs(MEDIA_ROOT)
 
 # Sandbox parameters
-# DEL_ENV_AFTER: number of days before a normal environment should be deleted
-# DEL_TEST_ENV_AFTER: number of days before a test environment should be deleted
+# DEL_ENV_AFTER: number of secondes before a normal environment should be deleted
+# DEL_TEST_ENV_AFTER: number of secondes before a test environment should be deleted
+# WAIT_FOR_CONTAINER_DURATION: time before returning a '503: Service Unavailable' when waiting for
+#                              a container.
 SANDBOX_VERSION = "1.0.0"
-DEL_ENV_AFTER = 12*30
-DEL_TEST_ENV_AFTER = 7
-
+DEL_ENV_AFTER = 7 * 86400  #  86400 sec in a day
+DEL_TEST_ENV_AFTER = 1 * 86400  #  86400 sec in a day
+WAIT_FOR_CONTAINER_DURATION = 1.5
 
 # Docker parameters
-# ENV_VAR - (dic) Environment variables to set inside the container, as a dictionary.
-# MEM_LIMIT - (str) Memory limit. String with a units identification char (13b, 12k, 14m, 1g)
-#                   min is 4m.
-# MEMSWAP_LIMIT - (str) https://docs.docker.com/engine/admin/resource_constraints/
-# CPUSET_CPUS - (str) CPUs in which to allow execution ("0-3", "0,1").
+# COUNT            - (int) Max number of containers running simultaneously.
+# IMAGE            - (str) Image use to create the containers.
+# ENV_VAR          - (dic) Environment variables to set inside the container, as a dictionary.
+# MEM_LIMIT        - (str) Memory limit. String with a units identification char (13b, 12k, 14m, 1g)
+#                          min is 4m.
+# MEMSWAP_LIMIT    - (str) https://docs.docker.com/engine/admin/resource_constraints/
+# CPUSET_CPUS      - (str) CPUs on which to allow execution ("0-3", "0,1").
+# VOLUME_CONTAINER - (str) Path to the directory shared with the host inside the container.
+# VOLUME_HOST      - (str) Path to the root directory containing each directory shared with the
+#                          containers. To create these directory, a directory named after the
+#                          container's name is create in VOLUME_HOST.
+# DEFAULT_FILES    - (str) Where the default files (files present in each container cwd) are stored.
+DOCKER_COUNT = 3
 DOCKER_IMAGE = "pl:base"
 DOCKER_ENV_VAR = {}
 DOCKER_MEM_LIMIT = "10m"
 DOCKER_MEMSWAP_LIMIT = 0
 DOCKER_CPUSET_CPUS = "0"
+DOCKER_VOLUME_CONTAINER = "/home/docker"
+DOCKER_VOLUME_HOST = os.path.join(BASE_DIR, 'containers_env')
+DOCKER_DEFAULT_FILES = os.path.join(BASE_DIR, 'default_file')
 
+# Check if any of the above settings are override by a config.py file.
 try:
     from pl_sandbox.config import *
 except:
@@ -161,8 +181,9 @@ except:
     logger.exception("No config file found.")
     pass
 
- # Docker creating function
-def CREATE_DOCKER():
+
+
+def CREATE_CONTAINER(name):
     return docker.from_env().containers.run(
         DOCKER_IMAGE,
         detach=True,
@@ -171,5 +192,31 @@ def CREATE_DOCKER():
         tty=True,
         cpuset_cpus=DOCKER_CPUSET_CPUS,
         mem_limit=DOCKER_MEM_LIMIT,
-        memswap_limit=DOCKER_MEMSWAP_LIMIT
+        memswap_limit=DOCKER_MEMSWAP_LIMIT,
+        name=name,
+        volumes={
+            os.path.join(DOCKER_VOLUME_HOST, name): {
+                "bind": DOCKER_VOLUME_CONTAINER,
+                "mode": "rw",
+            },
+        }
     )
+
+
+
+print("Creating docker containers... ", end="")
+sys.stdout.flush()
+# Kill stopped container created from DOCKER_IMAGE
+docker.from_env().containers.prune()
+# Kill running container created from DOCKER_IMAGE
+[c.kill() for c in docker.from_env().containers.list({"ancestor": DOCKER_IMAGE})]
+
+# Purging any existing container environment.
+if os.path.isdir(DOCKER_VOLUME_HOST):
+    shutil.rmtree(DOCKER_VOLUME_HOST)
+[os.makedirs(os.path.join(DOCKER_VOLUME_HOST, "c%d" % i)) for i in range(DOCKER_COUNT)]
+
+# Create containers.
+# Each element is a tuple (container, available)
+CONTAINERS = [ContainerWrapper("c%d" % i, i) for i in range(DOCKER_COUNT)]
+print("Done.")
