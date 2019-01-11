@@ -163,11 +163,11 @@ WAIT_FOR_CONTAINER_DURATION = 1.5
 #                          containers. To create these directory, a directory named after the
 #                          container's name is create in VOLUME_HOST.
 # DEFAULT_FILES    - (str) Where the default files (files present in each container cwd) are stored.
-DOCKER_COUNT = 3
+DOCKER_COUNT = 5
 DOCKER_IMAGE = "pl:base"
 DOCKER_ENV_VAR = {}
-DOCKER_MEM_LIMIT = "10m"
-DOCKER_MEMSWAP_LIMIT = 0
+DOCKER_MEM_LIMIT = "100m"
+DOCKER_MEMSWAP_LIMIT = "200m"
 DOCKER_CPUSET_CPUS = "0"
 DOCKER_VOLUME_CONTAINER = "/home/docker"
 DOCKER_VOLUME_HOST = os.path.join(BASE_DIR, 'containers_env')
