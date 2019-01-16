@@ -29,9 +29,9 @@ ENV PYTHONPATH /var/lib/upem:$PYTHONPATH
 
 
 # Installing Java 11
-RUN wget --no-cookies --no-check-certificate \
+RUN wget --no-check-certificate \
     --header "Cookie: oraclelicense=accept-securebackup-cookie"\
-    http://download.oracle.com/otn-pub/java/jdk/11.0.1+13/90cf5d8f270a4347a95050320eef3fb7/jdk-11.0.1_linux-x64_bin.deb
+    https://download.oracle.com/otn-pub/java/jdk/11.0.2+7/f51449fcd52f4d52b93a989c5c56ed3c/jdk-11.0.2_linux-x64_bin.deb
 RUN dpkg -i jdk-11.0.1_linux-x64_bin.deb
 RUN update-alternatives --install /usr/bin/java java  /usr/lib/jvm/jdk-11.0.1/bin/java 2
 RUN update-alternatives --install /usr/bin/javac javac  /usr/lib/jvm/jdk-11.0.1/bin/javac 2
