@@ -118,3 +118,6 @@ venv.bak/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+#visual studio code editor
+.vscode/*

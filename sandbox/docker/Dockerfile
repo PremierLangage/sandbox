@@ -32,9 +32,9 @@ ENV PYTHONPATH /var/lib/upem:$PYTHONPATH
 RUN wget --no-check-certificate \
     --header "Cookie: oraclelicense=accept-securebackup-cookie"\
     https://download.oracle.com/otn-pub/java/jdk/11.0.2+7/f51449fcd52f4d52b93a989c5c56ed3c/jdk-11.0.2_linux-x64_bin.deb
-RUN dpkg -i jdk-11.0.1_linux-x64_bin.deb
-RUN update-alternatives --install /usr/bin/java java  /usr/lib/jvm/jdk-11.0.1/bin/java 2
-RUN update-alternatives --install /usr/bin/javac javac  /usr/lib/jvm/jdk-11.0.1/bin/javac 2
+RUN dpkg -i jdk-11.0.2_linux-x64_bin.deb
+RUN update-alternatives --install /usr/bin/java java  /usr/lib/jvm/jdk-11.0.2/bin/java 2
+RUN update-alternatives --install /usr/bin/javac javac  /usr/lib/jvm/jdk-11.0.2/bin/javac 2
 RUN mkdir /utils
 RUN wget --no-check-certificate \
     https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.4.0-M1/junit-platform-console-standalone-1.4.0-M1.jar\
