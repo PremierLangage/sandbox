@@ -14,8 +14,8 @@ from sandbox.exceptions import ContextNotFoundError, GraderError
 
 logger = logging.getLogger(__name__)
 
-BUILD_TIMEOUT = 10
-EVAL_TIMEOUT = 10
+BUILD_TIMEOUT = 8
+EVAL_TIMEOUT = 8
 
 CONTEXT_FILE = "pl.json"
 BUILT_CONTEXT_FILE = "built_pl.json"
@@ -119,12 +119,12 @@ class Builder(Executor):
         return j
     
     
+    @timeout_decorator.timeout(BUILD_TIMEOUT, use_signals=False)
     def build(self):
         """Execute builder.py."""
         start = time.time()
         
         ret = self.docker.exec_run('./builder.sh')
-        # self.docker.exec_run(["/bin/sh", "-c", "chmod a+rwx * -R"])
         msg = ("Execution of build with parameters "
                + "DOCKER_MEM_LIMIT=" + str(settings.DOCKER_MEM_LIMIT) + " and "
                + "DOCKER_CPUSET_CPUS=" + str(settings.DOCKER_CPUSET_CPUS)
@@ -210,7 +210,8 @@ class Evaluator(Executor):
             json.dump(self.answers, f)
         logger.debug("add_answer_to_env() took " + str(time.time() - start))
     
-    
+
+    @timeout_decorator.timeout(EVAL_TIMEOUT, use_signals=False)
     def evaluate(self):
         """Execute grader.py, returning the result. """
         start = time.time()

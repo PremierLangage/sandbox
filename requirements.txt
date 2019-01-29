@@ -2,6 +2,7 @@ Django>=2.1.0,<3.0.0
 docker
 pytz
 requests
+timeout-decorator
 
 -e git://github.com/qcoumes/timeout-decorator.git@828367848280bb12f77571fb589c92f0b1f8525f#egg=timeout_decorator
 
