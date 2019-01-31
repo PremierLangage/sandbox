@@ -4,8 +4,6 @@ pytz
 requests
 timeout-decorator
 
--e git://github.com/qcoumes/timeout-decorator.git@828367848280bb12f77571fb589c92f0b1f8525f#egg=timeout_decorator
-
 # The following should be in the dockerfile of exercices
 sympy
 matplotlib
