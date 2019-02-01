@@ -14,10 +14,11 @@ import logging
 import os
 import shutil
 import sys
+import threading
 
 import docker
 
-from sandbox.container import ContainerWrapper
+from sandbox.container import initialise_container
 
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -146,8 +147,9 @@ if not os.path.isdir(MEDIA_ROOT):
 # WAIT_FOR_CONTAINER_DURATION: time before returning a '503: Service Unavailable' when waiting for
 #                              a container.
 SANDBOX_VERSION = "1.0.0"
-DEL_ENV_AFTER = 7 * 86400  #  86400 sec in a day
-DEL_TEST_ENV_AFTER = 1 * 86400  #  86400 sec in a day
+DAY = 86400 #  86400 sec in a day
+DEL_ENV_AFTER = 7 * DAY
+DEL_TEST_ENV_AFTER = 1 * DAY
 WAIT_FOR_CONTAINER_DURATION = 1.5
 
 # Docker parameters
@@ -181,42 +183,4 @@ except:
     logger.exception("No config file found.")
     pass
 
-
-
-def CREATE_CONTAINER(name):
-    return docker.from_env().containers.run(
-        DOCKER_IMAGE,
-        detach=True,
-        environment=DOCKER_ENV_VAR,
-        auto_remove=True,
-        tty=True,
-        cpuset_cpus=DOCKER_CPUSET_CPUS,
-        mem_limit=DOCKER_MEM_LIMIT,
-        memswap_limit=DOCKER_MEMSWAP_LIMIT,
-        name=name,
-        volumes={
-            os.path.join(DOCKER_VOLUME_HOST, name): {
-                "bind": DOCKER_VOLUME_CONTAINER,
-                "mode": "rw",
-            },
-        }
-    )
-
-
-
-print("Creating docker containers... ", end="")
-sys.stdout.flush()
-# Kill stopped container created from DOCKER_IMAGE
-docker.from_env().containers.prune()
-# Kill running container created from DOCKER_IMAGE
-[c.kill() for c in docker.from_env().containers.list({"ancestor": DOCKER_IMAGE})]
-
-# Purging any existing container environment.
-if os.path.isdir(DOCKER_VOLUME_HOST):
-    shutil.rmtree(DOCKER_VOLUME_HOST)
-[os.makedirs(os.path.join(DOCKER_VOLUME_HOST, "c%d" % i)) for i in range(DOCKER_COUNT)]
-
-# Create containers.
-# Each element is a tuple (container, available)
-CONTAINERS = [ContainerWrapper("c%d" % i, i) for i in range(DOCKER_COUNT)]
-print("Done.")
+threading.Thread(target=initialise_container).start()
