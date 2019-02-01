@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 CONTAINERS = None
 
 
+lock = threading.Lock()
+
 
 def create_container(name):
     return docker.from_env().containers.run(
@@ -64,7 +66,8 @@ class ContainerWrapper:
             docker.from_env().containers.prune()
             
             cw = ContainerWrapper("c%d" % self.index, self.index)
-            CONTAINERS[self.index] = cw
+            with lock:
+                CONTAINERS[self.index] = cw
             
             logger.info(
                 "Successfully restarted container '%s' of id '%d'" % (self.name, self.index))
@@ -95,11 +98,12 @@ class ContainerWrapper:
         """Return the first available container, None if none were available."""
         global CONTAINERS
         
-        cw = next((c for c in CONTAINERS if c.available), None)
-        if cw is not None:
-            CONTAINERS[cw.index].available = False
-            CONTAINERS[cw.index].used_since = time.time()
-            logger.info("Acquiring container '%s' of id '%d'" % (cw.name, cw.index))
+        with lock:
+            cw = next((c for c in CONTAINERS if c.available), None)
+            if cw is not None:
+                CONTAINERS[cw.index].available = False
+                CONTAINERS[cw.index].used_since = time.time()
+                logger.info("Acquiring container '%s' of id '%d'" % (cw.name, cw.index))
         
         return cw
     
@@ -115,7 +119,8 @@ class ContainerWrapper:
         self._get_default_file()
         self.container.restart()
         
-        CONTAINERS[self.index].available = True
+        with lock:
+            CONTAINERS[self.index].available = True
         logger.info("Releasing container '%s' of id '%d'" % (self.name, self.index))
     
     
@@ -125,19 +130,20 @@ class ContainerWrapper:
         this is not the case."""
         global CONTAINERS
         
-        for i in range(settings.DOCKER_COUNT):
-            try:
-                CONTAINERS[i].reload()
-            except docker.errors.DockerException:
-                CONTAINERS[i].to_delete = True
-        
-        for c in CONTAINERS:
-            if not c.need_reset:
-                continue
+        with lock:
+            for i in range(settings.DOCKER_COUNT):
+                try:
+                    CONTAINERS[i].reload()
+                except docker.errors.DockerException:
+                    CONTAINERS[i].to_delete = True
             
-            logger.info("Restarting container '%s' of id '%d'" % (c.name, c.index))
-            CONTAINERS[c.index].available = False
-            threading.Thread(target=c._reset).start()
+            for c in CONTAINERS:
+                if not c.need_reset:
+                    continue
+                
+                logger.info("Restarting container '%s' of id '%d'" % (c.name, c.index))
+                CONTAINERS[c.index].available = False
+                threading.Thread(target=c._reset).start()
 
 
 
@@ -166,8 +172,9 @@ def initialise_container():
     
     # Create containers.
     logger.info("Initializing containers.")
-    CONTAINERS = []
-    for i in range(settings.DOCKER_COUNT):
-        CONTAINERS.append(ContainerWrapper("c%d" % i, i))
-        logger.info("Container %d/%d initialized." % (i, settings.DOCKER_COUNT))
+    with lock:
+        CONTAINERS = []
+        for i in range(settings.DOCKER_COUNT):
+            CONTAINERS.append(ContainerWrapper("c%d" % i, i))
+            logger.info("Container %d/%d initialized." % (i, settings.DOCKER_COUNT))
     logger.info("Containers initialized.")
