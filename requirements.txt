@@ -2,8 +2,7 @@ Django>=2.1.0,<3.0.0
 docker
 pytz
 requests
-
--e git://github.com/qcoumes/timeout-decorator.git@828367848280bb12f77571fb589c92f0b1f8525f#egg=timeout_decorator
+timeout-decorator
 
 # The following should be in the dockerfile of exercices
 sympy
