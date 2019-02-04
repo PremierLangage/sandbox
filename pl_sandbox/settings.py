@@ -15,6 +15,7 @@ import os
 import shutil
 import sys
 import threading
+import time
 
 import docker
 
@@ -184,3 +185,5 @@ except:
     pass
 
 threading.Thread(target=initialise_container).start()
+
+time.sleep(2)
