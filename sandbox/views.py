@@ -7,16 +7,15 @@
 #  Last Modified: 2017-09-30
 
 
+import io
 import json
 import logging
 import os
 import tarfile
-import tempfile
 import threading
 import time
 import traceback
 import uuid
-import io
 
 from django.conf import settings
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
@@ -48,6 +47,13 @@ class EnvView(View):
     """Allow to download an environment for testings purpose."""
     
     
+    def head(self, request, env):
+        """Return HttpResponse200 if any environment containing <env> and a suffix are found,
+        404 otherwise."""
+        
+        return HttpResponse(status=200 if get_most_recent_env(env) else 404)
+    
+    
     def get(self, request, env):
         """Return all found environments containing <env>, 404 if no environment could not be
         found."""
@@ -58,7 +64,7 @@ class EnvView(View):
             os.path.join(settings.MEDIA_ROOT, e) for e in os.listdir(settings.MEDIA_ROOT)
             if env in e
         ]
-
+        
         stream = io.BytesIO()
         with tarfile.open(fileobj=stream, mode="w|gz") as tar:
             for e in entries:
