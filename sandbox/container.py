@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+import tarfile
 import threading
 import time
 
@@ -67,6 +68,28 @@ class ContainerWrapper:
                 shutil.copytree(s, d)
             else:
                 shutil.copy2(s, d)
+    
+    
+    def extract_env(self, envid, suffix, prefix="", test=False):
+        """Retrieve the environment from the docker and write it to:
+            [settings.MEDIA_ROOT]/[prefix][env_id][suffix][ext]
+        
+        "test_" is added before [prefix] if test is True
+        An integer (up to 100) can be added before [ext] if the path already exists."""
+        base = os.path.join(settings.MEDIA_ROOT,
+                            ("test_" if test else "") + prefix + envid + suffix)
+        path = base + ".tgz"
+        
+        print(test)
+        print(base)
+        
+        for i in range(1, 100):
+            if os.path.exists(path):
+                path = base + str(i) + ".tgz"
+        
+        with tarfile.open(path, "w|gz") as tar:
+            for name in os.listdir(self.envpath):
+                tar.add(os.path.join(self.envpath, name), arcname=name)
     
     
     @staticmethod

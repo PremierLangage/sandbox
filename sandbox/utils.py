@@ -26,18 +26,16 @@ def remove_outdated_env():
 
 
 
-def get_env_from_docker(cw, envpath, suffix):
-    """Retrieve the environment from the docker and write it to envpath."""
-    path, ext = os.path.splitext(os.path.basename(envpath))
-    path = os.path.join(settings.MEDIA_ROOT, path + suffix + ext)
+def get_most_recent_env(envid):
+    """Returns the path to the most recent environment's tar whose name contains <envid> and any
+    suffix, return None if no such tar was found."""
     
-    with tarfile.open(path, "w|gz") as tar:
-        for name in os.listdir(cw.envpath):
-            tar.add(os.path.join(cw.envpath, name), arcname=name)
-
-
-
-def get_env_and_reset(cw, envpath, suffix):
-    if cw is not None:
-        get_env_from_docker(cw, envpath, suffix)
-        cw.release()
+    
+    def mtime(entry):
+        """Return the modified time of <entry> in se ttings.MEDIA_ROOT."""
+        return os.stat(entry).st_mtime
+    
+    entries = [os.path.join(settings.MEDIA_ROOT, e) for e in os.listdir(settings.MEDIA_ROOT)]
+    envs = [e for e in entries if envid in e and not os.path.splitext(e)[0].endswith(envid)]
+    
+    return max(envs, key=mtime) if envs else None
