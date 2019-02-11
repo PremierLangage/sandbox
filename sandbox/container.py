@@ -80,9 +80,6 @@ class ContainerWrapper:
                             ("test_" if test else "") + prefix + envid + suffix)
         path = base + ".tgz"
         
-        print(test)
-        print(base)
-        
         for i in range(1, 100):
             if os.path.exists(path):
                 path = base + str(i) + ".tgz"

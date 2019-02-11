@@ -10,10 +10,13 @@
 import json
 import logging
 import os
+import tarfile
+import tempfile
 import threading
 import time
 import traceback
 import uuid
+import io
 
 from django.conf import settings
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
@@ -46,26 +49,24 @@ class EnvView(View):
     
     
     def get(self, request, env):
-        """Return the environment, status 404 if the environment could not be found."""
+        """Return all found environments containing <env>, 404 if no environment could not be
+        found."""
         logger.info("Env get request received from '" + request.META['REMOTE_ADDR']
                     + "' with ID '" + env + "'")
         
-        threading.Thread(target=remove_outdated_env).start()
+        entries = [
+            os.path.join(settings.MEDIA_ROOT, e) for e in os.listdir(settings.MEDIA_ROOT)
+            if env in e
+        ]
+
+        stream = io.BytesIO()
+        with tarfile.open(fileobj=stream, mode="w|gz") as tar:
+            for e in entries:
+                tar.add(e, arcname=os.path.basename(e))
         
-        path = os.path.join(settings.MEDIA_ROOT, env + '_built.tgz')
-        if not os.path.isfile(path):
-            built = False
-            path = os.path.join(settings.MEDIA_ROOT, env + '.tgz')
-            if not os.path.isfile(path):
-                raise Http404("Environment with id '" + env + "' not found")
-        else:
-            built = True
-        
-        with open(path, 'rb') as f:
-            response = HttpResponse(f.read())
-            response['Content-Type'] = "application/gzip"
-            response['Content-Disposition'] = ('attachment; filename=' + env
-                                               + ("_built.tgz" if built else ".tgz"))
+        response = HttpResponse(stream.getvalue())
+        response['Content-Type'] = "application/gzip"
+        response['Content-Disposition'] = ('attachment; filename=' + env + ".tgz")
         
         return response
 
@@ -73,6 +74,7 @@ class EnvView(View):
 
 class BuildView(View):
     """Build an environment with the content of request."""
+    
     
     def post(self, request):
         """Build an environment with the content of request."""
@@ -100,7 +102,6 @@ class BuildView(View):
             if not environment:
                 return HttpResponseBadRequest("Missing the parameter 'environment.tgz'")
             
-            print("TEST", test)
             envname = ("test_" if test else "") + str(env_uuid) + ".tgz"
             path = os.path.join(settings.MEDIA_ROOT, envname)
             with open(path, 'wb') as f:
@@ -133,6 +134,7 @@ class BuildView(View):
 
 class EvalView(View):
     """Evaluate an answer inside env."""
+    
     
     def post(self, request, env):
         """Evaluate an answer inside env."""
