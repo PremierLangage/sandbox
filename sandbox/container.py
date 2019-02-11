@@ -69,12 +69,6 @@ class ContainerWrapper:
                 shutil.copy2(s, d)
     
     
-    @property
-    def need_reset(self):
-        """Return True if the container need to be reset, False otherwise."""
-        return self.container.status not in ["running", "restarting", "created"] or self.to_delete
-    
-    
     @staticmethod
     def acquire():
         """Return the first available container, None if none were available."""
@@ -107,31 +101,6 @@ class ContainerWrapper:
         with lock:
             CONTAINERS[self.index].available = True
         logger.info("Releasing container '%s' of id '%d'" % (self.name, self.index))
-    
-    
-    @classmethod
-    def refresh_containers(cls):
-        """Check that each container are either running, restarting or being created. Reset them if
-        this is not the case."""
-        global CONTAINERS
-        
-        lock.acquire()
-        
-        for i in range(settings.DOCKER_COUNT):
-            try:
-                CONTAINERS[i].reload()
-            except docker.errors.DockerException:
-                CONTAINERS[i].to_delete = True
-        
-        for c in CONTAINERS:
-            if not c.need_reset:
-                continue
-            
-            logger.info("Restarting container '%s' of id '%d'" % (c.name, c.index))
-            CONTAINERS[c.index].available = False
-            threading.Thread(target=c._reset).start()
-        
-        lock.release()
 
 
 
