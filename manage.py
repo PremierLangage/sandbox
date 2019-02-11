@@ -19,4 +19,8 @@ if __name__ == "__main__":
                 "forget to activate a virtual environment?"
             )
         raise
+
+    if sys.argv[1] == "runserver":
+        sys.argv.append("--noreload")
+    
     execute_from_command_line(sys.argv)
