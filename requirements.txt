@@ -3,8 +3,3 @@ docker
 pytz
 requests
 timeout-decorator
-
-# The following should be in the dockerfile of exercices
-sympy
-matplotlib
-psycopg2
