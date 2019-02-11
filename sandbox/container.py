@@ -45,7 +45,7 @@ class ContainerWrapper:
     def __init__(self, name, index, available=True):
         path = os.path.join(settings.DOCKER_VOLUME_HOST, name)
         if os.path.isdir(path):
-            shutil.rmtree(path, ign)
+            shutil.rmtree(path, ignore_errors=True)
         os.makedirs(path)
         
         self.name = name
