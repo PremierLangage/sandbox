@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+import tarfile
 import threading
 import time
 
@@ -12,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 CONTAINERS = None
 
-
 lock = threading.Lock()
+
 
 
 def create_container(name):
@@ -26,7 +27,8 @@ def create_container(name):
         cpuset_cpus=settings.DOCKER_CPUSET_CPUS,
         mem_limit=settings.DOCKER_MEM_LIMIT,
         memswap_limit=settings.DOCKER_MEMSWAP_LIMIT,
-        name=name,
+        network_mode="none",
+        network_disabled=True,
         volumes={
             os.path.join(settings.DOCKER_VOLUME_HOST, name): {
                 "bind": settings.DOCKER_VOLUME_CONTAINER,
@@ -42,6 +44,11 @@ class ContainerWrapper:
     
     
     def __init__(self, name, index, available=True):
+        path = os.path.join(settings.DOCKER_VOLUME_HOST, name)
+        if os.path.isdir(path):
+            shutil.rmtree(path, ignore_errors=True)
+        os.makedirs(path)
+        
         self.name = name
         self.container = create_container(name)
         self.index = index
@@ -50,30 +57,6 @@ class ContainerWrapper:
         self.to_delete = False
         self.envpath = os.path.join(settings.DOCKER_VOLUME_HOST, self.name)
         self._get_default_file()
-    
-    
-    def _reset(self):
-        """Reset a given container by ensuring it's killed and overwriting it's instance with a new
-        one."""
-        global CONTAINERS
-        
-        try:
-            try:
-                self.container.kill()
-            except docker.errors.DockerException:
-                pass
-            
-            docker.from_env().containers.prune()
-            
-            cw = ContainerWrapper("c%d" % self.index, self.index)
-            with lock:
-                CONTAINERS[self.index] = cw
-            
-            logger.info(
-                "Successfully restarted container '%s' of id '%d'" % (self.name, self.index))
-        except docker.errors.DockerException:
-            logger.exception(
-                "Error while restarting container '%s' of id '%d'" % (self.name, self.index))
     
     
     def _get_default_file(self):
@@ -87,10 +70,23 @@ class ContainerWrapper:
                 shutil.copy2(s, d)
     
     
-    @property
-    def need_reset(self):
-        """Return True if the container need to be reset, False otherwise."""
-        return self.container.status not in ["running", "restarting", "created"] or self.to_delete
+    def extract_env(self, envid, suffix, prefix="", test=False):
+        """Retrieve the environment from the docker and write it to:
+            [settings.MEDIA_ROOT]/[prefix][env_id][suffix][ext]
+        
+        "test_" is added before [prefix] if test is True
+        An integer (up to 100) can be added before [ext] if the path already exists."""
+        base = os.path.join(settings.MEDIA_ROOT,
+                            ("test_" if test else "") + prefix + envid + suffix)
+        path = base + ".tgz"
+        
+        for i in range(1, 100):
+            if os.path.exists(path):
+                path = base + str(i) + ".tgz"
+        
+        with tarfile.open(path, "w|gz") as tar:
+            for name in os.listdir(self.envpath):
+                tar.add(os.path.join(self.envpath, name), arcname=name)
     
     
     @staticmethod
@@ -98,12 +94,15 @@ class ContainerWrapper:
         """Return the first available container, None if none were available."""
         global CONTAINERS
         
-        with lock:
-            cw = next((c for c in CONTAINERS if c.available), None)
-            if cw is not None:
-                CONTAINERS[cw.index].available = False
-                CONTAINERS[cw.index].used_since = time.time()
-                logger.info("Acquiring container '%s' of id '%d'" % (cw.name, cw.index))
+        lock.acquire()
+        
+        cw = next((c for c in CONTAINERS if c.available), None)
+        if cw is not None:
+            CONTAINERS[cw.index].available = False
+            CONTAINERS[cw.index].used_since = time.time()
+            logger.info("Acquiring container '%s' of id '%d'" % (cw.name, cw.index))
+        
+        lock.release()
         
         return cw
     
@@ -122,28 +121,6 @@ class ContainerWrapper:
         with lock:
             CONTAINERS[self.index].available = True
         logger.info("Releasing container '%s' of id '%d'" % (self.name, self.index))
-    
-    
-    @classmethod
-    def refresh_containers(cls):
-        """Check that each container are either running, restarting or being created. Reset them if
-        this is not the case."""
-        global CONTAINERS
-        
-        with lock:
-            for i in range(settings.DOCKER_COUNT):
-                try:
-                    CONTAINERS[i].reload()
-                except docker.errors.DockerException:
-                    CONTAINERS[i].to_delete = True
-            
-            for c in CONTAINERS:
-                if not c.need_reset:
-                    continue
-                
-                logger.info("Restarting container '%s' of id '%d'" % (c.name, c.index))
-                CONTAINERS[c.index].available = False
-                threading.Thread(target=c._reset).start()
 
 
 
@@ -151,11 +128,15 @@ def initialise_container():
     """Called by settings.py to initialize containers at server launch."""
     global CONTAINERS
     
+    lock.acquire()
+    
     time.sleep(0.5)
     # Kill stopped container created from DOCKER_IMAGE
-    logger.info("Purging existing containers using image : %s." % settings.DOCKER_IMAGE)
+    logger.info("Purging existing stopped containers using image : %s." % settings.DOCKER_IMAGE)
     logger.info("Killed stopped container : %s." % str(docker.from_env().containers.prune()))
-    # Kill running container created from DOCKER_IMAGE
+    
+    # Deleting running container created from DOCKER_IMAGE
+    CONTAINERS = []
     for c in docker.from_env().containers.list({"ancestor": settings.DOCKER_IMAGE}):
         logger.info("Killing container %s." % repr(c))
         c.kill()
@@ -166,15 +147,11 @@ def initialise_container():
     if os.path.isdir(settings.DOCKER_VOLUME_HOST):
         shutil.rmtree(settings.DOCKER_VOLUME_HOST)
     
-    logger.info("Creating new containers environment.")
-    [os.makedirs(os.path.join(settings.DOCKER_VOLUME_HOST, "c%d" % i)) for i in
-     range(settings.DOCKER_COUNT)]
-    
     # Create containers.
     logger.info("Initializing containers.")
-    with lock:
-        CONTAINERS = []
-        for i in range(settings.DOCKER_COUNT):
-            CONTAINERS.append(ContainerWrapper("c%d" % i, i))
-            logger.info("Container %d/%d initialized." % (i, settings.DOCKER_COUNT))
+    for i in range(settings.DOCKER_COUNT):
+        CONTAINERS.append(ContainerWrapper("c%d" % i, i))
+        logger.info("Container %d/%d initialized." % (i, settings.DOCKER_COUNT))
     logger.info("Containers initialized.")
+    
+    lock.release()
