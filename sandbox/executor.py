@@ -59,7 +59,7 @@ class Executor:
         with tarfile.open(self.envpath, "r:gz") as tar:
             tar.extractall(self.cw.envpath)
             tar.close()
-
+        
         processed = os.path.join(self.cw.envpath, PROCESSED_CONTEXT_FILE)
         old = os.path.join(self.cw.envpath, CONTEXT_FILE)
         if os.path.isfile(processed):
@@ -91,6 +91,15 @@ class Executor:
     def get_feedback(self):
         """Return content of /home/docker/FEEDBACK_FILE if found, an empty string otherwise."""
         return self.get_file(FEEDBACK_FILE)
+
+
+
+class Builder(Executor):
+    """Used to build an exercise."""
+    
+    
+    def __init__(self, cw, envpath, timeout=BUILD_TIMEOUT):
+        super().__init__(cw, envpath, timeout)
     
     
     def get_context(self):
@@ -107,15 +116,6 @@ class Executor:
         
         logger.debug("get_context() took " + str(time.time() - start))
         return j
-
-
-
-class Builder(Executor):
-    """Used to build an exercise."""
-    
-    
-    def __init__(self, cw, envpath, timeout=BUILD_TIMEOUT):
-        super().__init__(cw, envpath, timeout)
     
     
     @timeout_decorator.timeout(BUILD_TIMEOUT, use_signals=False)
@@ -193,6 +193,21 @@ class Evaluator(Executor):
         with open(os.path.join(self.cw.envpath, ANSWERS_FILE), "w+") as f:
             json.dump(self.answers, f)
         logger.debug("add_answer_to_env() took " + str(time.time() - start))
+    
+    
+    def get_context(self):
+        """Return content of PROCESSED_CONTEXT_FILE as a dictionnary (file must be a valid json).
+        Raises ContextNotFoundError if the file could not be found."""
+        start = time.time()
+        
+        try:
+            with open(os.path.join(self.cw.envpath, PROCESSED_CONTEXT_FILE)) as f:
+                j = json.load(f)
+        except FileNotFoundError:
+            return {}
+        
+        logger.debug("get_context() took " + str(time.time() - start))
+        return j
     
     
     @timeout_decorator.timeout(EVAL_TIMEOUT, use_signals=False)
