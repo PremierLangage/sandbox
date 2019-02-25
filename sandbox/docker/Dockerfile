@@ -1,4 +1,4 @@
-FROM debian:stretch
+FROM debian:latest
 
 MAINTAINER Quentin COUMES <qcoumes@etud.u-pem.fr>
 
