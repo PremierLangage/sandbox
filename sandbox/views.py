@@ -108,7 +108,7 @@ class BuildView(View):
             if not environment:
                 return HttpResponseBadRequest("Missing the parameter 'environment.tgz'")
             
-            envname = ("test_" if test else "") + str(env_uuid) + ".tgz"
+            envname = (settings.TEST_PREFIX if test else "") + str(env_uuid) + ".tgz"
             path = os.path.join(settings.MEDIA_ROOT, envname)
             with open(path, 'wb') as f:
                 f.write(environment.read())
@@ -131,8 +131,9 @@ class BuildView(View):
             logger.exception("An unknown exception occured during build of env %s:" % str(env_uuid))
         
         finally:
-            container.extract_env(str(env_uuid), "_built", test=test)
-            threading.Thread(target=container.release).start()
+            if container is not None:
+                container.extract_env(str(env_uuid), "_built", test=test)
+                threading.Thread(target=container.release).start()
         
         return HttpResponse(json.dumps(response), status=200)
 
@@ -189,7 +190,8 @@ class EvalView(View):
             logger.exception("An unknown exception occured during eval of env %s:" % env)
         
         finally:
-            container.extract_env(env, "_graded", test=test)
-            threading.Thread(target=container.release).start()
+            if container is not None:
+                container.extract_env(env, "_graded", test=test)
+                threading.Thread(target=container.release).start()
         
         return HttpResponse(json.dumps(response), status=200)
