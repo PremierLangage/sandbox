@@ -74,10 +74,10 @@ class ContainerWrapper:
         """Retrieve the environment from the docker and write it to:
             [settings.MEDIA_ROOT]/[prefix][env_id][suffix][ext]
         
-        "test_" is added before [prefix] if test is True
+        settings.TEST_PREFIX" is added before [prefix] if test is True
         An integer (up to 100) can be added before [ext] if the path already exists."""
         base = os.path.join(settings.MEDIA_ROOT,
-                            ("test_" if test else "") + prefix + envid + suffix)
+                            (settings.TEST_PREFIX if test else "") + prefix + envid + suffix)
         path = base + ".tgz"
         
         for i in range(1, 100):
