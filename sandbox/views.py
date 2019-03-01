@@ -17,6 +17,7 @@ import time
 import traceback
 import uuid
 
+import docker
 from django.conf import settings
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.urls import reverse
@@ -99,8 +100,7 @@ class BuildView(View):
                 if container is not None:
                     logger.debug("Acquiring a docker took " + str(time.time() - start))
                     break
-                
-                time.sleep(0.1)
+                time.sleep(0.2)
                 if time.time() - start > settings.WAIT_FOR_CONTAINER_DURATION:
                     return HttpResponse("Sandbox overloaded", status=503)
             
@@ -134,6 +134,7 @@ class BuildView(View):
             if container is not None:
                 container.extract_env(str(env_uuid), "_built", test=test)
                 threading.Thread(target=container.release).start()
+                
         
         return HttpResponse(json.dumps(response), status=200)
 
@@ -162,7 +163,7 @@ class EvalView(View):
                 if container is not None:
                     logger.debug("Acquiring a docker took " + str(time.time() - start))
                     break
-                time.sleep(0.1)
+                time.sleep(0.2)
             else:
                 return HttpResponse("Sandbox overloaded, retry in few seconds.", status=503)
             
