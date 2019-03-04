@@ -81,12 +81,8 @@ class ContainerWrapper:
             except docker.errors.DockerException:
                 pass
             
-            if os.path.isdir(self.envpath):
-                shutil.rmtree(self.envpath)
             self = ContainerWrapper("c%d" % self.index, self.index)
-            os.makedirs(self.envpath)
             self._get_default_file()
-            
             with LOCK:
                 CONTAINERS[self.index] = self
             
