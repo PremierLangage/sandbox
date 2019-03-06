@@ -17,6 +17,7 @@ import time
 import traceback
 import uuid
 
+import docker
 from django.conf import settings
 from django.http import Http404, HttpResponse, HttpResponseBadRequest
 from django.urls import reverse
@@ -99,8 +100,7 @@ class BuildView(View):
                 if container is not None:
                     logger.debug("Acquiring a docker took " + str(time.time() - start))
                     break
-                
-                time.sleep(0.1)
+                time.sleep(0.2)
                 if time.time() - start > settings.WAIT_FOR_CONTAINER_DURATION:
                     return HttpResponse("Sandbox overloaded", status=503)
             
@@ -108,7 +108,7 @@ class BuildView(View):
             if not environment:
                 return HttpResponseBadRequest("Missing the parameter 'environment.tgz'")
             
-            envname = ("test_" if test else "") + str(env_uuid) + ".tgz"
+            envname = (settings.TEST_PREFIX if test else "") + str(env_uuid) + ".tgz"
             path = os.path.join(settings.MEDIA_ROOT, envname)
             with open(path, 'wb') as f:
                 f.write(environment.read())
@@ -131,8 +131,10 @@ class BuildView(View):
             logger.exception("An unknown exception occured during build of env %s:" % str(env_uuid))
         
         finally:
-            container.extract_env(str(env_uuid), "_built", test=test)
-            threading.Thread(target=container.release).start()
+            if container is not None:
+                container.extract_env(str(env_uuid), "_built", test=test)
+                threading.Thread(target=container.release).start()
+                
         
         return HttpResponse(json.dumps(response), status=200)
 
@@ -161,7 +163,7 @@ class EvalView(View):
                 if container is not None:
                     logger.debug("Acquiring a docker took " + str(time.time() - start))
                     break
-                time.sleep(0.1)
+                time.sleep(0.2)
             else:
                 return HttpResponse("Sandbox overloaded, retry in few seconds.", status=503)
             
@@ -189,7 +191,8 @@ class EvalView(View):
             logger.exception("An unknown exception occured during eval of env %s:" % env)
         
         finally:
-            container.extract_env(env, "_graded", test=test)
-            threading.Thread(target=container.release).start()
+            if container is not None:
+                container.extract_env(env, "_graded", test=test)
+                threading.Thread(target=container.release).start()
         
         return HttpResponse(json.dumps(response), status=200)

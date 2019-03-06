@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 CONTAINERS = None
 
-lock = threading.Lock()
+LOCK = threading.Lock()
 
 
 
@@ -70,14 +70,37 @@ class ContainerWrapper:
                 shutil.copy2(s, d)
     
     
+    def _reset(self):
+        """Reset a given container by killing it and overwriting it's instance with
+        a new one."""
+        global CONTAINERS
+        
+        try:
+            try:
+                self.container.kill()
+            except docker.errors.DockerException:
+                pass
+            
+            self = ContainerWrapper("c%d" % self.index, self.index)
+            self._get_default_file()
+            with LOCK:
+                CONTAINERS[self.index] = self
+            
+            logger.info(
+                "Successfully restarted container '%s' of id '%d'" % (self.name, self.index))
+        except docker.errors.DockerException:
+            logger.exception(
+                "Error while restarting container '%s' of id '%d'" % (self.name, self.index))
+    
+    
     def extract_env(self, envid, suffix, prefix="", test=False):
         """Retrieve the environment from the docker and write it to:
             [settings.MEDIA_ROOT]/[prefix][env_id][suffix][ext]
         
-        "test_" is added before [prefix] if test is True
+        settings.TEST_PREFIX" is added before [prefix] if test is True
         An integer (up to 100) can be added before [ext] if the path already exists."""
         base = os.path.join(settings.MEDIA_ROOT,
-                            ("test_" if test else "") + prefix + envid + suffix)
+                            (settings.TEST_PREFIX if test else "") + prefix + envid + suffix)
         path = base + ".tgz"
         
         for i in range(1, 100):
@@ -94,7 +117,7 @@ class ContainerWrapper:
         """Return the first available container, None if none were available."""
         global CONTAINERS
         
-        lock.acquire()
+        LOCK.acquire()
         
         cw = next((c for c in CONTAINERS if c.available), None)
         if cw is not None:
@@ -102,7 +125,7 @@ class ContainerWrapper:
             CONTAINERS[cw.index].used_since = time.time()
             logger.info("Acquiring container '%s' of id '%d'" % (cw.name, cw.index))
         
-        lock.release()
+        LOCK.release()
         
         return cw
     
@@ -111,16 +134,21 @@ class ContainerWrapper:
         """Release this container."""
         global CONTAINERS
         
-        if os.path.isdir(self.envpath):
-            self.container.exec_run(["/bin/sh", "-c", "rm * -Rf"])
-            shutil.rmtree(self.envpath)
-        os.makedirs(self.envpath)
-        self._get_default_file()
-        self.container.restart()
+        try:
+            if os.path.isdir(self.envpath):
+                self.container.exec_run(["/bin/sh", "-c", "rm * -Rf"])
+                shutil.rmtree(self.envpath)
+            os.makedirs(self.envpath)
+            self._get_default_file()
+            self.container.restart()
+            with LOCK:
+                CONTAINERS[self.index].available = True
+            logger.info("Releasing container '%s' of id '%d'" % (self.name, self.index))
         
-        with lock:
-            CONTAINERS[self.index].available = True
-        logger.info("Releasing container '%s' of id '%d'" % (self.name, self.index))
+        except docker.errors.DockerException:
+            logger.info("Could not release container '%s' of id '%d', trying to reset it"
+                        % (self.name, self.index))
+            self._reset()
 
 
 
@@ -128,7 +156,7 @@ def initialise_container():
     """Called by settings.py to initialize containers at server launch."""
     global CONTAINERS
     
-    lock.acquire()
+    LOCK.acquire()
     
     time.sleep(0.5)
     # Kill stopped container created from DOCKER_IMAGE
@@ -154,4 +182,4 @@ def initialise_container():
         logger.info("Container %d/%d initialized." % (i, settings.DOCKER_COUNT))
     logger.info("Containers initialized.")
     
-    lock.release()
+    LOCK.release()
