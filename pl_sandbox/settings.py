@@ -147,7 +147,7 @@ if not os.path.isdir(MEDIA_ROOT):
 # DEL_TEST_ENV_AFTER: number of secondes before a test environment should be deleted
 # WAIT_FOR_CONTAINER_DURATION: time before returning a '503: Service Unavailable' when waiting for
 #                              a container.
-SANDBOX_VERSION = "1.0.1"
+SANDBOX_VERSION = "1.0.2"
 DAY = 86400 #  86400 sec in a day
 DEL_ENV_AFTER = 7 * DAY
 DEL_TEST_ENV_AFTER = 1 * DAY
@@ -180,9 +180,9 @@ DOCKER_DEFAULT_FILES = os.path.join(BASE_DIR, 'default_file')
 # Check if any of the above settings are override by a config.py file.
 try:
     from pl_sandbox.config import *
-except:
     logger = logging.getLogger(__name__)
-    logger.exception("No config file found.")
+    logger.info("Using config.py...")
+except:
     pass
 
 threading.Thread(target=initialise_container).start()

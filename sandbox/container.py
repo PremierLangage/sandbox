@@ -19,22 +19,22 @@ LOCK = threading.Lock()
 
 def create_container(name):
     return docker.from_env().containers.run(
-        settings.DOCKER_IMAGE,
-        detach=True,
-        environment=settings.DOCKER_ENV_VAR,
-        auto_remove=True,
-        tty=True,
-        cpuset_cpus=settings.DOCKER_CPUSET_CPUS,
-        mem_limit=settings.DOCKER_MEM_LIMIT,
-        memswap_limit=settings.DOCKER_MEMSWAP_LIMIT,
-        network_mode="none",
-        network_disabled=True,
-        volumes={
-            os.path.join(settings.DOCKER_VOLUME_HOST, name): {
-                "bind": settings.DOCKER_VOLUME_CONTAINER,
-                "mode": "rw",
-            },
-        }
+            settings.DOCKER_IMAGE,
+            detach=True,
+            environment=settings.DOCKER_ENV_VAR,
+            auto_remove=True,
+            tty=True,
+            cpuset_cpus=settings.DOCKER_CPUSET_CPUS,
+            mem_limit=settings.DOCKER_MEM_LIMIT,
+            memswap_limit=settings.DOCKER_MEMSWAP_LIMIT,
+            network_mode="none",
+            network_disabled=True,
+            volumes={
+                    os.path.join(settings.DOCKER_VOLUME_HOST, name): {
+                            "bind": settings.DOCKER_VOLUME_CONTAINER,
+                            "mode": "rw",
+                    },
+            }
     )
 
 
@@ -87,10 +87,10 @@ class ContainerWrapper:
                 CONTAINERS[self.index] = self
             
             logger.info(
-                "Successfully restarted container '%s' of id '%d'" % (self.name, self.index))
+                    "Successfully restarted container '%s' of id '%d'" % (self.name, self.index))
         except docker.errors.DockerException:
             logger.exception(
-                "Error while restarting container '%s' of id '%d'" % (self.name, self.index))
+                    "Error while restarting container '%s' of id '%d'" % (self.name, self.index))
     
     
     def extract_env(self, envid, suffix, prefix="", test=False):
@@ -159,13 +159,10 @@ def initialise_container():
     LOCK.acquire()
     
     time.sleep(0.5)
-    # Kill stopped container created from DOCKER_IMAGE
-    logger.info("Purging existing stopped containers using image : %s." % settings.DOCKER_IMAGE)
-    logger.info("Killed stopped container : %s." % str(docker.from_env().containers.prune()))
     
     # Deleting running container created from DOCKER_IMAGE
     CONTAINERS = []
-    for c in docker.from_env().containers.list({"ancestor": settings.DOCKER_IMAGE}):
+    for c in docker.from_env().containers.list(filters={"ancestor": settings.DOCKER_IMAGE}):
         logger.info("Killing container %s." % repr(c))
         c.kill()
         logger.info("Container %s killed." % repr(c))
