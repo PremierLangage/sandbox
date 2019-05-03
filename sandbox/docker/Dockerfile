@@ -6,6 +6,7 @@ ENV DEBIAN_FRONTEND noninteractive
 
 
 # Installing base requirements
+RUN echo 'deb http://deb.debian.org/debian stretch-backports main' > /etc/apt/sources.list.d/backports.list
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
     sudo \
@@ -24,7 +25,8 @@ RUN apt-get install -y --no-install-recommends \
     ocaml-nox \
     ocaml \
     perl \
-    perl-doc
+    perl-doc \
+    openjdk-11-jdk
 
 
 # Installing pip3 and python's requirements
@@ -35,18 +37,12 @@ RUN pip3 install \
     jinja2 \
     jsonpickle \
     sympy \
-    matplotlib \
-    psycopg2
+    matplotlib
 
 
 # Installing Java 11
-RUN wget \
-    -P /tmp \
-    --header "Cookie: oraclelicense=accept-securebackup-cookie"\
-    https://download.oracle.com/otn-pub/java/jdk/11.0.2+7/f51449fcd52f4d52b93a989c5c56ed3c/jdk-11.0.2_linux-x64_bin.deb
-RUN dpkg -i /tmp/jdk-11.0.2_linux-x64_bin.deb
-RUN update-alternatives --install /usr/bin/java java  /usr/lib/jvm/jdk-11.0.2/bin/java 2
-RUN update-alternatives --install /usr/bin/javac javac  /usr/lib/jvm/jdk-11.0.2/bin/javac 2
+RUN update-alternatives --install /usr/bin/java java  /usr/lib/jvm/java-11-openjdk-amd64/bin/java 2
+RUN update-alternatives --install /usr/bin/javac javac  /usr/lib/jvm/java-11-openjdk-amd64/bin/javac 2
 RUN mkdir /utils
 RUN wget \
     https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.4.0-M1/junit-platform-console-standalone-1.4.0-M1.jar \
