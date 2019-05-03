@@ -36,12 +36,6 @@ ALLOWED_HOSTS = ['pl-sandbox.u-pem.fr', '127.0.0.1']
 # Application definition
 INSTALLED_APPS = [
     'sandbox',
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
 ]
 
 MIDDLEWARE = []
@@ -168,7 +162,7 @@ WAIT_FOR_CONTAINER_DURATION = 2
 #                          container's name is create in VOLUME_HOST.
 # DEFAULT_FILES    - (str) Where the default files (files present in each container cwd) are stored.
 DOCKER_COUNT = 5
-DOCKER_IMAGE = "pl:base"
+DOCKER_IMAGE = "pl:latest"
 DOCKER_ENV_VAR = {}
 DOCKER_MEM_LIMIT = "100m"
 DOCKER_MEMSWAP_LIMIT = "200m"
