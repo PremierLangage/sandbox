@@ -6,6 +6,7 @@ import tarfile
 import threading
 import time
 from django.conf import settings
+from docker.types import Ulimit
 
 
 logger = logging.getLogger(__name__)
@@ -35,6 +36,7 @@ def create_container(name):
             },
         },
         user=os.getuid(),
+        ulimits=[Ulimit(name="core", soft=0, hard=0)]
     )
 
 
