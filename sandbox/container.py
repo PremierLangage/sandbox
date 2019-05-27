@@ -1,10 +1,11 @@
-import docker
 import logging
 import os
 import shutil
 import tarfile
 import threading
 import time
+
+import docker
 from django.conf import settings
 from docker.types import Ulimit
 
@@ -38,6 +39,37 @@ def create_container(name):
         user=os.getuid(),
         ulimits=[Ulimit(name="core", soft=0, hard=0)]
     )
+
+
+
+def initialise_container():
+    """Called by settings.py to initialize containers at server launch."""
+    global CONTAINERS
+    
+    LOCK.acquire()
+    
+    time.sleep(0.5)
+    
+    # Deleting running container created from DOCKER_IMAGE
+    CONTAINERS = []
+    for c in docker.from_env().containers.list(filters={"ancestor": settings.DOCKER_IMAGE}):
+        logger.info("Killing container %s." % repr(c))
+        c.kill()
+        logger.info("Container %s killed." % repr(c))
+    
+    # Purging any existing container environment.
+    logger.info("Purging any existing container environment.")
+    if os.path.isdir(settings.DOCKER_VOLUME_HOST):
+        shutil.rmtree(settings.DOCKER_VOLUME_HOST)
+    
+    # Create containers.
+    logger.info("Initializing containers.")
+    for i in range(settings.DOCKER_COUNT):
+        CONTAINERS.append(ContainerWrapper("c%d" % i, i))
+        logger.info("Container %d/%d initialized." % (i, settings.DOCKER_COUNT))
+    logger.info("Containers initialized.")
+    
+    LOCK.release()
 
 
 
@@ -151,34 +183,3 @@ class ContainerWrapper:
             logger.info("Could not release container '%s' of id '%d', trying to reset it"
                         % (self.name, self.index))
             self._reset()
-
-
-
-def initialise_container():
-    """Called by settings.py to initialize containers at server launch."""
-    global CONTAINERS
-    
-    LOCK.acquire()
-    
-    time.sleep(0.5)
-    
-    # Deleting running container created from DOCKER_IMAGE
-    CONTAINERS = []
-    for c in docker.from_env().containers.list(filters={"ancestor": settings.DOCKER_IMAGE}):
-        logger.info("Killing container %s." % repr(c))
-        c.kill()
-        logger.info("Container %s killed." % repr(c))
-    
-    # Purging any existing container environment.
-    logger.info("Purging any existing container environment.")
-    if os.path.isdir(settings.DOCKER_VOLUME_HOST):
-        shutil.rmtree(settings.DOCKER_VOLUME_HOST)
-    
-    # Create containers.
-    logger.info("Initializing containers.")
-    for i in range(settings.DOCKER_COUNT):
-        CONTAINERS.append(ContainerWrapper("c%d" % i, i))
-        logger.info("Container %d/%d initialized." % (i, settings.DOCKER_COUNT))
-    logger.info("Containers initialized.")
-    
-    LOCK.release()
