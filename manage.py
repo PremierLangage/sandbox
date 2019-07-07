@@ -2,8 +2,9 @@
 import os
 import sys
 
+
 if __name__ == "__main__":
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "pl_sandbox.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
     try:
         from django.core.management import execute_from_command_line
     except ImportError:
@@ -19,7 +20,7 @@ if __name__ == "__main__":
                 "forget to activate a virtual environment?"
             )
         raise
-
+    
     if sys.argv[1] == "runserver":
         sys.argv.append("--noreload")
         print("--noreload enforced. You will have to restart the server to apply changes.")

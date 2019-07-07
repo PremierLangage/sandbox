@@ -1,297 +1,200 @@
-import json
+# executor.py
+#
+# Authors:
+#   - Coumes Quentin <coumes.quentin@gmail.com>
+
+
 import logging
 import os
 import tarfile
+import threading
 import time
-import traceback
+from datetime import datetime, timedelta
+from typing import Optional, Tuple
 
-import timeout_decorator
 from django.conf import settings
+from django_http_exceptions import HTTPExceptions
+from docker.models.containers import Container
+from timeout_decorator import timeout_decorator
 
+from sandbox.container import Sandbox
 from sandbox.enums import SandboxErrCode
-from sandbox.exceptions import ContextNotFoundError, GraderError
 
 
 logger = logging.getLogger(__name__)
 
-BUILD_TIMEOUT = 8
-EVAL_TIMEOUT = 8
 
-CONTEXT_FILE = "pl.json"
-PROCESSED_CONTEXT_FILE = "processed.json"
-STDOUT_FILE = "stdout.log"
-STDERR_FILE = "stderr.log"
-FEEDBACK_FILE = "feedback.html"
-ANSWERS_FILE = "answers.json"
 
-TIMEOUT_FEEDBACK = """
-L'éxecution de votre programme prends trop de temps (maximum %d secondes autorisées).
-<br><br>Cette erreur peut être dû:
-<ul>
-    <li>
-        À une boucle infinie. Pensez à vérifier les conditions d'arrêts de vos boucles
-       <strong>while</strong> ainsi que de vos fonctions récursives.
-    </li>
-    <li>
-        À un algorithme trop gourmand. Certains algorithmes sont meilleurs que d'autres pour
-        effectuer certaines actions.
-    </li>
-</ul>
-"""
+class Command:
+    """Use to wrap bash commands."""
+    
+    
+    def __init__(self, command: str, timeout: float = None):
+        if command.startswith("-"):
+            self.command = command[1:]
+            self.ignore_failure = True
+        else:
+            self.command = command
+            self.ignore_failure = False
+        self.timeout = timeout
+    
+    
+    @staticmethod
+    def __check(d: dict) -> bool:
+        """Returns True if <d> is a valid representation of a command else False.
+        
+        Check that:
+            - 'command' is present and is a string.
+            - if 'timeout' is present, it is either an integer or a float."""
+        return (
+                'command' in d and isinstance(d, str)
+                and ("timeout" not in d or ("timeout" in d and isinstance(d["timeout"], (int, float))))
+                and True
+        )
+    
+    
+    @classmethod
+    def from_request(cls, config: dict) -> Tuple['Command', ...]:
+        """Extract commands from the config dictionary, returning a list of Commands."""
+        if 'commands' not in config:
+            raise HTTPExceptions.BAD_REQUEST.with_response("Missing field 'commands' in config")
+        
+        commands = list()
+        for c in config["commands"]:
+            if isinstance(c, dict) and cls.__check(c):
+                commands.append(Command(**c))
+            elif isinstance(c, str):
+                commands.append(Command(c))
+            else:
+                raise HTTPExceptions.BAD_REQUEST.with_response(f"Command badly formatted : '{c}'")
+        
+        return commands
+    
+    
+    def execute(self, container: Container) -> Tuple[bool, dict]:
+        """Execute the command on the given container."""
+        start = time.time()
+        
+        try:
+            if self.timeout is not None:
+                exec_run = timeout_decorator.timeout(self.timeout, use_signals=False)(container.exec_run)
+                exit_code, _ = exec_run(self.command)
+            else:
+                exit_code, _ = container.exec_run(self.command)
+            
+            stdout = container.logs(stdout=True, stderr=False, since=start)
+            stderr = container.logs(stdout=False, stderr=True, since=start)
+        except timeout_decorator.TimeoutError:
+            exit_code = SandboxErrCode.TIMEOUT
+            stdout = ""
+            stderr = f"Sandbox timed out after {settings.EXECUTE_TIMEOUT} seconds"
+        
+        result = {
+            "command":   self.command,
+            "exit_code": exit_code,
+            "stdout":    stdout,
+            "stderr":    stderr,
+            "time":      time.time() - start,
+        }
+        
+        if exit_code < 0:
+            status = False
+        elif self.ignore_failure:
+            status = True
+        else:
+            status = (exit_code == 0)
+        
+        return status, result
 
 
 
 class Executor:
-    """This class provide an interface to execute PL scripts."""
+    """This class provide methods to execute bash commands."""
     
     
-    def __init__(self, cw, envpath, timeout=0):
-        self.envpath = envpath
-        self.envid = os.path.splitext(os.path.basename(envpath))[0]
-        self.cw = cw
-        self.docker = cw.container
-        self.timeout = timeout
+    def __init__(self, commands: Tuple[Command, ...], sandbox: Sandbox, env_uuid: str = None, envvars: dict = None,
+                 result: str = None, save: bool = False):
+        self.commands = commands
+        self.sandbox = sandbox
+        self.env_uuid = env_uuid
+        self.env_path = os.path.join(settings.ENVIRONMENT_DIR, env_uuid) if env_uuid is not None else None
+        self.envvars = envvars
+        self.result_path = result
+        self.save = save
     
     
-    def move_env_to_docker(self):
+    def __move_env_to_container(self):
         """Send the tar to the Docker and untar it inside the Docker"""
         start = time.time()
-        with tarfile.open(self.envpath, "r:gz") as tar:
-            tar.extractall(self.cw.envpath)
-            tar.close()
         
-        processed = os.path.join(self.cw.envpath, PROCESSED_CONTEXT_FILE)
-        old = os.path.join(self.cw.envpath, CONTEXT_FILE)
-        if os.path.isfile(processed):
-            os.remove(old)
-            os.rename(processed, old)
+        with tarfile.open(self.env_path, "r:gz") as tar:
+            tar.extractall(self.sandbox.envpath)
         
-        logger.debug("move_env_to_docker() took " + str(time.time() - start))
+        logger.debug(f"Moving environment to container took : {time.time() - start} seconds")
     
     
-    def get_file(self, path):
+    def __get_result(self) -> Optional[str]:
         """Return the content of /home/docker/<path> if found, an empty string otherwise."""
         start = time.time()
-        with open(os.path.join(self.cw.envpath, path)) as f:
-            content = f.read()
-        logger.debug("get_file() took " + str(time.time() - start))
-        return content
-    
-    
-    def get_stdout(self):
-        """Return content of /home/docker/STDOUT_FILE if found, an empty string otherwise."""
-        return self.get_file(STDOUT_FILE)
-    
-    
-    def get_stderr(self):
-        """Return content of /home/docker/STDERR_FILE if found, an empty string otherwise."""
-        return self.get_file(STDERR_FILE)
-    
-    
-    def get_feedback(self):
-        """Return content of /home/docker/FEEDBACK_FILE if found, an empty string otherwise."""
-        return self.get_file(FEEDBACK_FILE)
-
-
-
-class Builder(Executor):
-    """Used to build an exercise."""
-    
-    
-    def __init__(self, cw, envpath, timeout=BUILD_TIMEOUT):
-        super().__init__(cw, envpath, timeout)
-    
-    
-    def get_context(self):
-        """Return content of PROCESSED_CONTEXT_FILE as a dictionnary (file must be a valid json).
-        Raises ContextNotFoundError if the file could not be found."""
-        start = time.time()
         
         try:
-            with open(os.path.join(self.cw.envpath, PROCESSED_CONTEXT_FILE)) as f:
-                j = json.load(f)
+            with open(os.path.join(self.sandbox.envpath, self.result_path)) as f:
+                content = f.read()
+            return content
         except FileNotFoundError:
-            logger.debug("get_context() took " + str(time.time() - start))
-            raise ContextNotFoundError
-        
-        logger.debug("get_context() took " + str(time.time() - start))
-        return j
+            return None
+        finally:
+            logger.debug(f"Getting result from container took : {time.time() - start} seconds")
     
     
-    @timeout_decorator.timeout(BUILD_TIMEOUT, use_signals=False)
-    def build(self):
-        """Execute builder.py."""
+    def __set_envvars(self):
+        """Set environment variables inside the container."""
+        start = time.time()
+        self.sandbox.container.exec_run("export " + ' '.join([f"{k}={v}" for k, v in self.envvars.items()]))
+        logger.debug(f"Setting environment variable inside the container took : {time.time() - start} seconds")
+    
+    
+    def execute(self) -> dict:
+        """Execute each commands in the container."""
         start = time.time()
         
-        ret = self.docker.exec_run('./builder.sh')
-        msg = ("Execution of build with parameters "
-               + "DOCKER_MEM_LIMIT=" + str(settings.DOCKER_MEM_LIMIT) + " and "
-               + "DOCKER_CPUSET_CPUS=" + str(settings.DOCKER_CPUSET_CPUS)
-               + " took " + str(time.time() - start) + " secondes.")
-        logger.debug(msg)
-        return ret
-    
-    
-    def execute(self):
-        """Execute the class command and return a valid response dictionnary."""
-        try:
-            self.move_env_to_docker()
-            exit_code, _ = self.build()
-            response = {
-                "id":         self.envid,
-                "status":     exit_code,
-                "stderr":     self.get_stderr(),
-                "context":    self.get_context() if not exit_code else {},
-                "sandboxerr": ""
-            }
-        except timeout_decorator.TimeoutError:
-            response = {
-                "id":         self.envid,
-                "status":     SandboxErrCode.TIMEOUT,
-                "stderr":     self.get_stderr(),
-                "context":    {},
-                "sandboxerr": ("Execution of the script build/before timed out after "
-                               + str(self.timeout) + " seconds.")
-            }
-        except ContextNotFoundError:
-            response = {
-                "id":         self.envid,
-                "status":     SandboxErrCode.CONTEXT_NOT_FOUND,
-                "stderr":     self.get_stderr(),
-                "context":    {},
-                "sandboxerr": (
-                    "File '" + PROCESSED_CONTEXT_FILE + "' and '" + CONTEXT_FILE + "' were "
-                    + "not found in the environment after the execution of the "
-                    + "build/before script.")
-            }
-        except Exception:  # Unknown error
-            response = {
-                "id":         self.envid,
-                "status":     SandboxErrCode.UNKNOWN,
-                "stderr":     self.get_stderr(),
-                "context":    {},
-                "sandboxerr": "An unknown error occured:\n" + traceback.format_exc()
-            }
-            logger.exception("An unknown exception occured during build of env %s:" % self.envid)
+        if self.env_path is not None:
+            self.__move_env_to_container()
         
-        return response
-
-
-
-class Evaluator(Executor):
-    """Use to grade an exercise."""
-    
-    
-    def __init__(self, cw, envpath, answers, timeout=EVAL_TIMEOUT):
-        super().__init__(cw, envpath, timeout)
-        self.answers = answers
-    
-    
-    def add_answer_to_env(self):
-        """Add the answers in self.answers tp the environment."""
-        start = time.time()
-        with open(os.path.join(self.cw.envpath, ANSWERS_FILE), "w+") as f:
-            json.dump(self.answers, f)
-        logger.debug("add_answer_to_env() took " + str(time.time() - start))
-    
-    
-    def get_context(self):
-        """Return content of PROCESSED_CONTEXT_FILE as a dictionnary (file must be a valid json).
-        Raises ContextNotFoundError if the file could not be found."""
-        start = time.time()
+        self.__set_envvars()
         
-        try:
-            with open(os.path.join(self.cw.envpath, PROCESSED_CONTEXT_FILE)) as f:
-                j = json.load(f)
-        except FileNotFoundError:
-            return {}
+        execution = list()
         
-        logger.debug("get_context() took " + str(time.time() - start))
-        return j
-    
-    
-    @timeout_decorator.timeout(EVAL_TIMEOUT, use_signals=False)
-    def evaluate(self):
-        """Execute grader.py, returning the result. """
-        start = time.time()
-        ret = self.docker.exec_run("./grader.sh")
-        msg = ("Execution of evaluate with parameters "
-               + "DOCKER_MEM_LIMIT=" + str(settings.DOCKER_MEM_LIMIT) + " and "
-               + "DOCKER_CPUSET_CPUS=" + str(settings.DOCKER_CPUSET_CPUS)
-               + " took " + str(time.time() - start) + " secondes.")
-        logger.debug(msg)
-        return ret
-    
-    
-    def execute(self):
-        """
-        Send the environnement to the docker and evaluate the student's code.
-        """
-        stdout = None
-        try:
-            self.move_env_to_docker()
-            self.add_answer_to_env()
-            exit_code, stdout = self.evaluate()
-            stdout = stdout.decode()
-            try:
-                if not exit_code:
-                    stdout = int(stdout)
-            except ValueError:
-                raise GraderError()
-            feedback = self.get_feedback()
-            if feedback == '\n':
-                feedback = ""
-            response = {
-                "id":         self.envid,
-                "status":     exit_code,
-                "grade":      stdout if not exit_code else (-1),
-                "stderr":     self.get_stderr(),
-                "feedback":   feedback if feedback else str(stdout if not exit_code else -1),
-                "context":    self.get_context() if not exit_code else {},
-                "sandboxerr": "",
-            }
-        except timeout_decorator.TimeoutError:
-            response = {
-                "id":         self.envid,
-                "status":     SandboxErrCode.TIMEOUT,
-                "grade":      (-1),
-                "stderr":     self.get_stderr(),
-                "feedback":   TIMEOUT_FEEDBACK % self.timeout,
-                "context":    {},
-                "sandboxerr": ("Execution of the grader timed out after "
-                               + str(self.timeout)
-                               + " seconds.\nThe RAM of the sandbox is currently"
-                               + " limited to "
-                               + settings.DOCKER_MEM_LIMIT
-                               + ", using more will "
-                               + "considerably slow the execution of your grader.\n"
-                               + "Do not forget to close every open file or to use 'with' "
-                               + "statement.")
-            }
-        except GraderError:
-            response = {
-                "id":         self.envid,
-                "status":     SandboxErrCode.GRADER_NOT_INT,
-                "grade":      (-1),
-                "stderr":     self.get_stderr(),
-                "feedback":   ("Execution of the evaluating script returned an invalid value."
-                               + " Please contact your teacher."),
-                "context":    {},
-                "sandboxerr": (
-                    "Grader script did not return a valid integer on stdout, received:\n"
-                    + ("'" + str(stdout) + "'" if str(stdout) else "[NOTHING]"))
-            }
-        except Exception:  # Unknown error
-            response = {
-                "id":         self.envid,
-                "status":     SandboxErrCode.UNKNOWN,
-                "grade":      (-1),
-                "stderr":     self.get_stderr(),
-                "feedback":   ("Execution of the evaluating script failed due to an unkwown error."
-                               + " Please contact your teacher."),
-                "context":    {},
-                "sandboxerr": "An unknown error occured:\n" + traceback.format_exc()
-            }
-            logger.exception("An unknown exception occured during eval of env %s:" % self.envid)
+        for command in self.commands:
+            status, exec_result = command.execute(self.sandbox.container)
+            execution.append(exec_result)
+            if not status:
+                status = exec_result["exit_code"]
+                break
+        else:
+            status = 0
+        
+        result = None
+        if self.result_path is not None:
+            result = self.__get_result()
+            if result is None:
+                status = SandboxErrCode.RESULT_NOT_FOUND
+        
+        response = {
+            "status":     status,
+            "execution":  execution,
+            "total_time": time.time() - start,
+        }
+        
+        if self.env_uuid is not None and self.save:
+            response["environment"] = self.env_uuid
+            response["expire"] = (datetime.now() + timedelta(seconds=settings.ENVIRONMENT_EXPIRATION)).isoformat()
+            os.remove(self.env_path)
+            threading.Thread(target=self.sandbox.extract_env, args=(self.env_uuid,))
+        elif self.env_uuid is not None and not self.save:
+            os.remove(self.env_path)
+        
+        if result is not None:
+            response["result"] = result
         
         return response
