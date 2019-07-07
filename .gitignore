@@ -1,8 +1,7 @@
 # Project's ignored file
 src/
-pl_sandbox/config.py
-tmp/
-.idea
+config.py
+.idea/
 containers_env/
 environments/
 
