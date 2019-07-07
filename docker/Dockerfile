@@ -1,6 +1,6 @@
-FROM debian:latest
+FROM debian:buster
 
-MAINTAINER Quentin COUMES <qcoumes@etud.u-pem.fr>
+LABEL maintainer="coumes.quentin@gmail.com"
 
 ENV DEBIAN_FRONTEND noninteractive
 
@@ -27,8 +27,17 @@ RUN apt-get install -y --no-install-recommends \
     perl \
     perl-doc \
     openjdk-11-jdk \
-    python3-distutils
+    python3-distutils \
+    python2 \
+    postgresql \
+    sqlite
+RUN apt-get clean
+RUN apt-get autoclean
+RUN apt-get autoremove
+RUN rm -rf /var/lib/apt/lists/*
 
+# Set python3 as default
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 2
 
 # Installing pip3 and python's requirements
 RUN wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py
@@ -60,11 +69,13 @@ RUN tar -xvzf /tmp/pl-java-jdk-11.tar.gz -C /utils/
 RUN ln -s /utils/pl-java/bin/pl-java /usr/bin/pl-java
 RUN ln -s /utils/pl-java/bin/pl-javac /usr/bin/pl-javac
 
+# Copying libraries script
+COPY libraries.py /utils/libraries.py
 
 # Cleaning /tmp
 RUN rm -Rf /tmp/*
 
-
+RUN yes | cpan -l &> /dev/null
 
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en

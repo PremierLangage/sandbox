@@ -1,198 +1,198 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# Python [3.6]
+# views.py
 #
-#  Author: Coumes Quentin     Mail: qcoumes@etud.u-pem.fr
-#  Created: 2017-07-30
-#  Last Modified: 2017-09-30
+# Authors:
+#   - Coumes Quentin <coumes.quentin@gmail.com>
 
 
-import io
 import json
 import logging
 import os
-import tarfile
+import re
+import subprocess
 import threading
 import time
-import traceback
-import uuid
+from io import SEEK_END
 
 import docker
 from django.conf import settings
-from django.http import Http404, HttpResponse, HttpResponseBadRequest
-from django.urls import reverse
+from django.http import (HttpResponse, HttpResponseBadRequest, HttpResponseNotAllowed, HttpResponseNotFound,
+                         JsonResponse)
 from django.views.generic import View
 
-from sandbox.container import ContainerWrapper
-from sandbox.enums import SandboxErrCode
-from sandbox.executor import Builder, Evaluator
-from sandbox.utils import get_most_recent_env, remove_outdated_env
+from sandbox import utils
+from sandbox.container import Sandbox
+from sandbox.executor import Command, Executor
 
 
 logger = logging.getLogger(__name__)
 
 
 
-class VersionView(View):
-    """Return the version of the sandbox."""
-    
-    
-    def get(self, request):
-        """Return the version of the sandbox."""
-        logger.info("Version request received from '" + request.META['REMOTE_ADDR'] + "'")
-        return HttpResponse('{"version": ' + settings.SANDBOX_VERSION + '}', status=200)
-
-
-
 class EnvView(View):
-    """Allow to download an environment for testings purpose."""
+    """Handle environment download."""
     
     
-    def head(self, request, env):
-        """Return HttpResponse200 if any environment containing <env> and a suffix are found,
-        404 otherwise."""
+    def head(self, _, env):
+        """Returns a response with status 200 if the environment <env> exists, 404 otherwise."""
+        path = utils.get_env(env)
+        if path is None:
+            return HttpResponseNotFound()
         
-        return HttpResponse(status=200 if get_most_recent_env(env) else 404)
-    
-    
-    def get(self, request, env):
-        """Return all found environments containing <env>, 404 if no environment could not be
-        found."""
-        logger.info("Env get request received from '" + request.META['REMOTE_ADDR']
-                    + "' with ID '" + env + "'")
-        
-        entries = [
-            os.path.join(settings.MEDIA_ROOT, e) for e in os.listdir(settings.MEDIA_ROOT)
-            if env in e
-        ]
-        
-        stream = io.BytesIO()
-        with tarfile.open(fileobj=stream, mode="w|gz") as tar:
-            for e in entries:
-                tar.add(e, arcname=os.path.basename(e))
-        
-        response = HttpResponse(stream.getvalue())
+        response = HttpResponse()
+        response["Content-Length"] = os.stat(path).st_size
         response['Content-Type'] = "application/gzip"
         response['Content-Disposition'] = ('attachment; filename=' + env + ".tgz")
+        return response
+    
+    
+    def get(self, _, env):
+        """Return the environment with the UUID <env>, 404 if it does not exists."""
+        path = utils.get_env(env)
+        if path is None:
+            return HttpResponseNotFound()
         
+        with open(path, "rb") as f:
+            response = HttpResponse(f.read())
+        
+        response["Content-Length"] = os.stat(path).st_size
+        response['Content-Type'] = "application/gzip"
+        response['Content-Disposition'] = ('attachment; filename=' + env + ".tgz")
         return response
 
 
 
-class BuildView(View):
-    """Build an environment with the content of request."""
+class FileView(View):
+    """Handle environment's file download."""
     
     
-    def post(self, request):
-        """Build an environment with the content of request."""
-        start = time.time()
-        logger.info("Build request received from '" + request.META['REMOTE_ADDR'] + "'")
+    def head(self, _, env, path):
+        """Returns a response with status 200 if <path> point to a file the environment <env>,
+        404 otherwise."""
+        file = utils.extract(env, path)
+        if file is None:
+            return HttpResponseNotFound()
         
-        threading.Thread(target=remove_outdated_env).start()
+        response = HttpResponse()
+        response["Content-Length"] = file.seek(0, SEEK_END)
+        response['Content-Type'] = "application/octet-stream"
+        response['Content-Disposition'] = ('attachment; filename=' + os.path.basename(path))
+        return response
+    
+    
+    def get(self, _, env, path):
+        """Returns a response with status 200 if <path> point to a file the environment <env>,
+        404 otherwise."""
+        file = utils.extract(env, path)
+        if file is None:
+            return HttpResponseNotFound()
         
-        env_uuid = uuid.uuid4()
-        container = None
-        test = request.POST.get('test', False)
-        
-        try:
-            while True:
-                container = ContainerWrapper.acquire()
-                if container is not None:
-                    logger.debug("Acquiring a docker took " + str(time.time() - start))
-                    break
-                time.sleep(0.2)
-                if time.time() - start > settings.WAIT_FOR_CONTAINER_DURATION:
-                    return HttpResponse("Sandbox overloaded", status=503)
-            
-            environment = request.FILES.get('environment.tgz')
-            if not environment:
-                return HttpResponseBadRequest("Missing the parameter 'environment.tgz'")
-            
-            envname = (settings.TEST_PREFIX if test else "") + str(env_uuid) + ".tgz"
-            path = os.path.join(settings.MEDIA_ROOT, envname)
-            with open(path, 'wb') as f:
-                f.write(environment.read())
-            del environment
-            
-            logger.debug("POST BUILD took " + str(time.time() - start))
-            response = Builder(container, path).execute()
-            logger.debug("Total build took " + str(time.time() - start)
-                         + " | environment : " + str(env_uuid))
-        
-        except Exception:  # Unknown error
-            response = {
-                "id":          str(env_uuid),
-                "sandbox_url": request.build_absolute_uri(reverse("sandbox:index")),
-                "status":      SandboxErrCode.UNKNOWN,
-                "stderr":      "",
-                "context":     {},
-                "sandboxerr":  "An unknown error occured:\n" + traceback.format_exc()
-            }
-            logger.exception("An unknown exception occured during build of env %s:" % str(env_uuid))
-        
-        finally:
-            if container is not None:
-                container.extract_env(str(env_uuid), "_built", test=test)
-                threading.Thread(target=container.release).start()
-                
-        
-        return HttpResponse(json.dumps(response), status=200)
+        response = HttpResponse(file.read())
+        response["Content-Length"] = file.tell()
+        response['Content-Type'] = "application/octet-stream"
+        response['Content-Disposition'] = ('attachment; filename=' + os.path.basename(path))
+        return response
 
 
 
-class EvalView(View):
-    """Evaluate an answer inside env."""
+def specifications(request):
+    """Returns the specs of the sandbox."""
+    if request.method != "GET":
+        return HttpResponseNotAllowed(['GET'], f"405 Method Not Allowed : {request.method}")
     
+    cpu_count = settings.DOCKER_PARAMETERS["cpuset_cpus"]
+    if "-" in cpu_count:
+        lower, upper = cpu_count.split("-")
+        cpu_count = upper - lower + 1
+    else:
+        cpu_count = len(cpu_count.split(","))
     
-    def post(self, request, env):
-        """Evaluate an answer inside env."""
-        start = time.time()
-        logger.info("Evaluate post request received from '" + request.META['REMOTE_ADDR'] + "'")
-        
-        threading.Thread(target=remove_outdated_env).start()
-        
-        container = None
-        path = get_most_recent_env(env)
-        if path is None:
-            raise Http404("Environment with id '" + env + "' not found")
-        test = request.POST.get('test', False)
-        
-        try:
-            while time.time() - start < settings.WAIT_FOR_CONTAINER_DURATION:
-                container = ContainerWrapper.acquire()
-                if container is not None:
-                    logger.debug("Acquiring a docker took " + str(time.time() - start))
-                    break
-                time.sleep(0.2)
-            else:
-                return HttpResponse("Sandbox overloaded, retry in few seconds.", status=503)
-            
-            answers = request.POST.get('answers')
-            if not answers:
-                return HttpResponseBadRequest("Missing parameter 'answers'")
-            answers = json.loads(answers)
-            
-            logger.debug("POST EVAL TOOK " + str(time.time() - start))
-            response = Evaluator(container, path, answers).execute()
-            logger.debug("Total eval took " + str(time.time() - start))
-        
-        except Exception:  # Unknown error
-            response = {
-                "id":          env,
-                "sandbox_url": request.build_absolute_uri(reverse("sandbox:index")),
-                "status":      SandboxErrCode.UNKNOWN,
-                "grade":       (-1),
-                "stderr":      "",
-                "feedback":    ("Execution of the evaluating script failed due to an unkwown error."
-                                + " Please contact your teacher."),
-                "context":     {},
-                "sandboxerr":  "An unknown error occured:\n" + traceback.format_exc()
-            }
-            logger.exception("An unknown exception occured during eval of env %s:" % env)
-        
-        finally:
-            if container is not None:
-                container.extract_env(env, "_graded", test=test)
-                threading.Thread(target=container.release).start()
-        
-        return HttpResponse(json.dumps(response), status=200)
+    infos = subprocess.check_output("cat /proc/cpuinfo", shell=True, universal_newlines=True)
+    for line in infos.strip().split("\n"):
+        if "model name" in line:
+            cpu_name = re.sub(r"\s*model name\s*:", "", line, 1).strip()
+            break
+    else:
+        cpu_name = ""
+    
+    available = Sandbox.available()
+    docker_version = subprocess.check_output("docker -v", shell=True, universal_newlines=True)
+    docker_version = docker_version.strip()[15:].split(",")[0]
+    
+    if ("storage_opt" in settings.DOCKER_PARAMETERS
+            and "size" in settings.DOCKER_PARAMETERS["storage_opt"]):
+        storage = settings.DOCKER_PARAMETERS["storage_opt"]["size"]
+    else:
+        storage = "host"
+    
+    response = {
+        "containers":      {
+            "total":     settings.DOCKER_COUNT,
+            "running":   settings.DOCKER_COUNT - available,
+            "available": available,
+        },
+        "envvar":          settings.DOCKER_PARAMETERS["environment"],
+        "cpu":             {
+            "count":  cpu_count,
+            "period": settings.DOCKER_PARAMETERS["cpu_period"],
+            "shares": settings.DOCKER_PARAMETERS["cpu_shares"],
+            "quota":  settings.DOCKER_PARAMETERS["cpu_quota"],
+            "name":   cpu_name,
+        },
+        "memory":          {
+            "limit":   settings.DOCKER_PARAMETERS["mem_limit"],
+            "swap":    settings.DOCKER_PARAMETERS["memswap_limit"],
+            "storage": storage,
+        },
+        "docker_version":  docker_version,
+        "sandbox_version": settings.SANDBOX_VERSION,
+        "execute_timeout": settings.EXECUTE_TIMEOUT,
+        "expiration":      settings.ENVIRONMENT_EXPIRATION,
+    }
+    
+    return JsonResponse(response)
+
+
+
+def libraries(request):
+    if request.method != "GET":
+        return HttpResponseNotAllowed(['GET'], f"405 Method Not Allowed : {request.method}")
+    
+    response = docker.from_env().containers.run(settings.DOCKER_PARAMETERS["image"], "python3 /utils/libraries.py")
+    return JsonResponse(json.loads(response))
+
+
+
+def execute(request):
+    """Allows to execute bash commands within an optionnal environment."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(['POST'], f"405 Method Not Allowed : {request.method}")
+    
+    start = time.time()
+    
+    config = request.POST.get("config")
+    if config is None:
+        return HttpResponseBadRequest("Missing argument 'config'")
+    
+    try:
+        config = json.loads(config)
+        if not isinstance(config, dict):
+            return HttpResponseBadRequest(f'config must be an object, not {type(config)}')
+    except json.JSONDecodeError as e:
+        return HttpResponseBadRequest(f"'config' json is invalid - {e}")
+    
+    env = utils.executed_env(request, config)
+    commands = Command.from_request(config)
+    envvars = utils.parse_envvars(config)
+    result_path = utils.parse_result_path(config)
+    save = utils.parse_save(config)
+    
+    logger.debug(f"Parsing config request took : {time.time() - start} seconds")
+    
+    sandbox = Sandbox.acquire()
+    
+    response = Executor(commands, sandbox, env, envvars, result_path, save).execute()
+    threading.Thread(target=sandbox.release)
+    
+    logger.debug(f"Total execute request took : {time.time() - start} seconds")
+    
+    return JsonResponse(response)
