@@ -26,7 +26,8 @@ RUN apt-get install -y --no-install-recommends \
     ocaml \
     perl \
     perl-doc \
-    openjdk-11-jdk
+    openjdk-11-jdk \
+    python3-distutils
 
 
 # Installing pip3 and python's requirements
