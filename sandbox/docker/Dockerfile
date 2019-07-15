@@ -38,7 +38,10 @@ RUN pip3 install \
     jinja2 \
     jsonpickle \
     sympy \
-    matplotlib
+    matplotlib \
+    automata-lib \
+    wimsapi \
+    graphviz
 
 
 # Installing Java 11
