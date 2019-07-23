@@ -19,9 +19,9 @@ from django.http import (HttpResponse, HttpResponseBadRequest, HttpResponseNotAl
                          JsonResponse)
 from django.views.generic import View
 
-from sandbox import utils
-from sandbox.container import Sandbox
-from sandbox.executor import Command, Executor
+from . import utils
+from .container import Sandbox
+from .executor import Command, Executor
 
 
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ class EnvView(View):
         """Returns a response with status 200 if the environment <env> exists, 404 otherwise."""
         path = utils.get_env(env)
         if path is None:
-            return HttpResponseNotFound()
+            return HttpResponseNotFound(f"No environment with UUID '{env}' found")
         
         response = HttpResponse()
         response["Content-Length"] = os.stat(path).st_size
@@ -49,7 +49,7 @@ class EnvView(View):
         """Return the environment with the UUID <env>, 404 if it does not exists."""
         path = utils.get_env(env)
         if path is None:
-            return HttpResponseNotFound()
+            return HttpResponseNotFound(f"No environment with UUID '{env}' found")
         
         with open(path, "rb") as f:
             response = HttpResponse(f.read())
@@ -69,9 +69,6 @@ class FileView(View):
         """Returns a response with status 200 if <path> point to a file the environment <env>,
         404 otherwise."""
         file = utils.extract(env, path)
-        if file is None:
-            return HttpResponseNotFound()
-        
         response = HttpResponse()
         response["Content-Length"] = file.seek(0, SEEK_END)
         response['Content-Type'] = "application/octet-stream"
@@ -83,9 +80,6 @@ class FileView(View):
         """Returns a response with status 200 if <path> point to a file the environment <env>,
         404 otherwise."""
         file = utils.extract(env, path)
-        if file is None:
-            return HttpResponseNotFound()
-        
         response = HttpResponse(file.read())
         response["Content-Length"] = file.tell()
         response['Content-Type'] = "application/octet-stream"

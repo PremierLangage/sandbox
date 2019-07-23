@@ -112,8 +112,8 @@ class Sandbox:
     
     def extract_env(self, envid):
         """Retrieve the environment from the container and write it
-        to [settings.ENVIRONMENT_DIR]/[envid].tgz"""
-        path = os.path.join(settings.ENVIRONMENT_DIR, envid) + ".tgz"
+        to [settings.ENVIRONMENT_ROOT]/[envid].tgz"""
+        path = os.path.join(settings.ENVIRONMENT_ROOT, envid) + ".tgz"
         
         self.lock.acquire()
         
@@ -153,7 +153,9 @@ class Sandbox:
                 break
             time.sleep(0.1)
             if time.time() - start > settings.WAIT_FOR_CONTAINER_DURATION:
-                raise HTTPExceptions.SERVICE_UNAVAILABLE.with_response("Sandbox overloaded")
+                raise HTTPExceptions.SERVICE_UNAVAILABLE.with_content(
+                    "Sandbox overloaded, retry after a few secondes."
+                )
         
         return container
     
