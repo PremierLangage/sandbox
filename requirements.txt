@@ -1,6 +1,5 @@
-Django>=2.1.0,<3.0.0
-django-http-exceptions
-docker
-pytz
-requests
-timeout-decorator
+Django >=2.2.3, <3.0.0
+-e git://github.com/qcoumes/django_http_exceptions#egg=django-http-exceptions
+docker >=4.0.2, <5.0.0
+requests >=2.22.0, <3.0.0
+timeout-decorator == 0.4.1

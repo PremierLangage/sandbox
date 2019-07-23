@@ -17,8 +17,8 @@ from django_http_exceptions import HTTPExceptions
 from docker.models.containers import Container
 from timeout_decorator import timeout_decorator
 
-from sandbox.container import Sandbox
-from sandbox.enums import SandboxErrCode
+from .container import Sandbox
+from .enums import SandboxErrCode
 
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ class Command:
     def from_request(cls, config: dict) -> Tuple['Command', ...]:
         """Extract commands from the config dictionary, returning a list of Commands."""
         if 'commands' not in config:
-            raise HTTPExceptions.BAD_REQUEST.with_response("Missing field 'commands' in config")
+            raise HTTPExceptions.BAD_REQUEST.with_content("Missing field 'commands' in config")
         
         commands = list()
         for c in config["commands"]:
@@ -66,7 +66,7 @@ class Command:
             elif isinstance(c, str):
                 commands.append(Command(c))
             else:
-                raise HTTPExceptions.BAD_REQUEST.with_response(f"Command badly formatted : '{c}'")
+                raise HTTPExceptions.BAD_REQUEST.with_content(f"Command badly formatted : '{c}'")
         
         return commands
     
@@ -117,7 +117,7 @@ class Executor:
         self.commands = commands
         self.sandbox = sandbox
         self.env_uuid = env_uuid
-        self.env_path = os.path.join(settings.ENVIRONMENT_DIR, env_uuid) if env_uuid is not None else None
+        self.env_path = os.path.join(settings.ENVIRONMENT_ROOT, env_uuid) if env_uuid is not None else None
         self.envvars = envvars
         self.result_path = result
         self.save = save

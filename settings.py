@@ -138,9 +138,9 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # Directory where environments are stored
-ENVIRONMENT_DIR = os.path.join(BASE_DIR, 'environments')
-if not os.path.isdir(ENVIRONMENT_DIR):
-    os.makedirs(ENVIRONMENT_DIR)
+ENVIRONMENT_ROOT = os.path.join(BASE_DIR, 'environments')
+if not os.path.isdir(ENVIRONMENT_ROOT):
+    os.makedirs(ENVIRONMENT_ROOT)
 
 # Sandbox parameters
 # WAIT_FOR_CONTAINER_DURATION: time before returning a '503: Service Unavailable' when waiting for
