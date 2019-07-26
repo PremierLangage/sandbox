@@ -2,21 +2,20 @@
 #
 # Authors:
 #   - Coumes Quentin <coumes.quentin@gmail.com>
-
-
 import logging
 import os
 import tarfile
 import threading
 import time
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from django.conf import settings
 from django_http_exceptions import HTTPExceptions
 from docker.models.containers import Container
 from timeout_decorator import timeout_decorator
 
+from sandbox import utils
 from .container import Sandbox
 from .enums import SandboxErrCode
 
@@ -29,42 +28,57 @@ class Command:
     """Use to wrap bash commands."""
     
     
-    def __init__(self, command: str, timeout: float = None):
+    def __init__(self, command: str, timeout: float = settings.EXECUTE_TIMEOUT, environ=None):
+        if environ is None:
+            environ = {}
         if command.startswith("-"):
             self.command = command[1:]
             self.ignore_failure = True
         else:
             self.command = command
             self.ignore_failure = False
+        self.environ = environ if environ is not None else {}
         self.timeout = timeout
     
     
+    def __repr__(self):
+        return f"<executor.Command '{self.command}' timeout={self.timeout}>"
+    
+    
+    __str__ = __repr__
+    
+    
     @staticmethod
-    def __check(d: dict) -> bool:
-        """Returns True if <d> is a valid representation of a command else False.
+    def _check(d: dict) -> bool:
+        """Returns True if <d> is a valid representation of a command, False otherwise.
         
         Check that:
             - 'command' is present and is a string.
             - if 'timeout' is present, it is either an integer or a float."""
-        return (
-                'command' in d and isinstance(d, str)
-                and ("timeout" not in d or ("timeout" in d and isinstance(d["timeout"], (int, float))))
-                and True
-        )
+        return all((
+            'command' in d and isinstance(d["command"], str),
+            "timeout" not in d or isinstance(d["timeout"], (int, float)),
+        ))
     
     
     @classmethod
-    def from_request(cls, config: dict) -> Tuple['Command', ...]:
+    def from_config(cls, config: dict) -> List['Command']:
         """Extract commands from the config dictionary, returning a list of Commands."""
         if 'commands' not in config:
             raise HTTPExceptions.BAD_REQUEST.with_content("Missing field 'commands' in config")
         
+        if not isinstance(config["commands"], list):
+            raise HTTPExceptions.BAD_REQUEST.with_content(
+                f'commands must be a list, not {type(config["commands"])}')
+        
+        environ = utils.parse_environ(config)
+        
         commands = list()
         for c in config["commands"]:
-            if isinstance(c, dict) and cls.__check(c):
-                commands.append(Command(**c))
+            if isinstance(c, dict) and cls._check(c):
+                commands.append(Command(environ=environ, **c))
             elif isinstance(c, str):
-                commands.append(Command(c))
+                commands.append(Command(c, environ=environ))
             else:
                 raise HTTPExceptions.BAD_REQUEST.with_content(f"Command badly formatted : '{c}'")
         
@@ -76,18 +90,20 @@ class Command:
         start = time.time()
         
         try:
-            if self.timeout is not None:
-                exec_run = timeout_decorator.timeout(self.timeout, use_signals=False)(container.exec_run)
-                exit_code, _ = exec_run(self.command)
-            else:
-                exit_code, _ = container.exec_run(self.command)
-            
-            stdout = container.logs(stdout=True, stderr=False, since=start)
-            stderr = container.logs(stdout=False, stderr=True, since=start)
+            timeout = timeout_decorator.timeout(self.timeout, use_signals=False)
+            exec_run = timeout(container.exec_run)
+            exit_code, output = exec_run(
+                ["bash", "-c", self.command], environment=self.environ, demux=True)
+            stdout, stderr = ("" if out is None else out.decode().strip() for out in output)
         except timeout_decorator.TimeoutError:
             exit_code = SandboxErrCode.TIMEOUT
             stdout = ""
-            stderr = f"Sandbox timed out after {settings.EXECUTE_TIMEOUT} seconds"
+            stderr = f"Sandbox timed out after {self.timeout} seconds\n"
+        except Exception:  # pragma: no cover
+            logger.exception(f"An error occurred while executing the command '{self.command}'")
+            exit_code = SandboxErrCode.UNKNOWN
+            stdout = ""
+            stderr = "An unknown error occurred on the sandbox\n"
         
         result = {
             "command":   self.command,
@@ -112,15 +128,18 @@ class Executor:
     """This class provide methods to execute bash commands."""
     
     
-    def __init__(self, commands: Tuple[Command, ...], sandbox: Sandbox, env_uuid: str = None, envvars: dict = None,
+    def __init__(self, commands: List[Command], sandbox: Sandbox, env_uuid: str = None,
                  result: str = None, save: bool = False):
         self.commands = commands
         self.sandbox = sandbox
         self.env_uuid = env_uuid
-        self.env_path = os.path.join(settings.ENVIRONMENT_ROOT, env_uuid) if env_uuid is not None else None
-        self.envvars = envvars
         self.result_path = result
         self.save = save
+        
+        if env_uuid is not None:
+            self.env_path = os.path.join(settings.ENVIRONMENT_ROOT, f"{env_uuid}.tgz")
+        else:
+            self.env_path = None
     
     
     def __move_env_to_container(self):
@@ -140,18 +159,11 @@ class Executor:
         try:
             with open(os.path.join(self.sandbox.envpath, self.result_path)) as f:
                 content = f.read()
-            return content
+            return content.strip()
         except FileNotFoundError:
             return None
         finally:
             logger.debug(f"Getting result from container took : {time.time() - start} seconds")
-    
-    
-    def __set_envvars(self):
-        """Set environment variables inside the container."""
-        start = time.time()
-        self.sandbox.container.exec_run("export " + ' '.join([f"{k}={v}" for k, v in self.envvars.items()]))
-        logger.debug(f"Setting environment variable inside the container took : {time.time() - start} seconds")
     
     
     def execute(self) -> dict:
@@ -160,8 +172,6 @@ class Executor:
         
         if self.env_path is not None:
             self.__move_env_to_container()
-        
-        self.__set_envvars()
         
         execution = list()
         
@@ -187,10 +197,11 @@ class Executor:
         }
         
         if self.env_uuid is not None and self.save:
+            expire = datetime.now() + timedelta(seconds=settings.ENVIRONMENT_EXPIRATION)
             response["environment"] = self.env_uuid
-            response["expire"] = (datetime.now() + timedelta(seconds=settings.ENVIRONMENT_EXPIRATION)).isoformat()
+            response["expire"] = expire.isoformat()
             os.remove(self.env_path)
-            threading.Thread(target=self.sandbox.extract_env, args=(self.env_uuid,))
+            threading.Thread(target=self.sandbox.extract_env, args=(self.env_uuid,)).start()
         elif self.env_uuid is not None and not self.save:
             os.remove(self.env_path)
         
