@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 
 import logging
 import os
+import sys
 import threading
 
 from docker.types import Ulimit
@@ -27,6 +28,9 @@ SECRET_KEY = '+61drt2^c32qp)knvy32m*xm*ew=po%f8a9l!bp$kd7mz3(109'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
+
+# Set to true when 'python3 manage.py test' is used
+TESTING = sys.argv[1:2] == ['test']
 
 ALLOWED_HOSTS = ['127.0.0.1']
 
@@ -146,7 +150,7 @@ if not os.path.isdir(ENVIRONMENT_ROOT):
 # WAIT_FOR_CONTAINER_DURATION: time before returning a '503: Service Unavailable' when waiting for
 #       a container.
 SANDBOX_VERSION = "2.0.0"
-WAIT_FOR_CONTAINER_DURATION = 3
+WAIT_FOR_CONTAINER_DURATION = 2
 EXECUTE_TIMEOUT = 10.0
 
 # ENVIRONMENT_EXPIRATION: Time before the environment are deleted.
@@ -220,4 +224,9 @@ try:
 except ModuleNotFoundError:
     pass
 
-threading.Thread(target=initialise_container).start()
+# Override some settings from testing purpose
+if TESTING:
+    DOCKER_COUNT = 3
+
+INITIALISING_THREAD = threading.Thread(target=initialise_container)
+INITIALISING_THREAD.start()
