@@ -15,6 +15,10 @@ from django.http import HttpRequest
 from django_http_exceptions import HTTPExceptions
 
 
+ENV1 = "dae5f9a3-a911-4df4-82f8-b9343241ece5"
+ENV2 = "e77f958e-4757-4e8f-89eb-21a0153d53d4"
+
+
 
 def merge_tar_gz(a: Optional[BinaryIO], b: Optional[BinaryIO]) -> Optional[BinaryIO]:
     """Merge <a> and <b>, returning a new tarfile.TarFile object.
@@ -64,7 +68,7 @@ def merge_tar_gz(a: Optional[BinaryIO], b: Optional[BinaryIO]) -> Optional[Binar
 
 def get_env(env: str) -> Optional[str]:
     """Returns the path of the environment <env>, None if it does not exists."""
-    path = os.path.join(settings.ENVIRONMENT_ROOT, env + ".tgz")
+    path = os.path.join(settings.ENVIRONMENT_ROOT, f"{env}.tgz")
     return path if os.path.isfile(path) else None
 
 
@@ -122,22 +126,22 @@ def executed_env(request: HttpRequest, config: dict) -> Optional[str]:
     uuid_env = None
     if env is not None:
         uuid_env = str(uuid.uuid4())
-        with open(os.path.join(settings.ENVIRONMENT_ROOT, uuid_env + ".tgz"), "w+b") as f:
+        with open(os.path.join(settings.ENVIRONMENT_ROOT, f"{uuid_env}.tgz"), "w+b") as f:
             f.write(env.read())
     
     return uuid_env
 
 
 
-def parse_envvars(config: dict) -> Optional[dict]:
-    """Check the validity of 'envvars' in the request and return it, returns None if it is not
-    present."""
-    if "envvars" in config:
-        if not isinstance(config["envvars"], dict):
+def parse_environ(config: dict) -> dict:
+    """Check the validity of 'environ' in the request and return it, returns an empty dictionnary
+    if it is not present."""
+    if "environ" in config:
+        if not isinstance(config["environ"], dict):
             raise HTTPExceptions.BAD_REQUEST.with_content(
-                f'envvars must be an object, not {type(config["envvars"])}')
-        return {k: str(v) for k, v in config["envvars"].items()} if "envvars" in config else dict()
-    return None
+                f'environ must be an object, not {type(config["environ"])}')
+        return {k: str(v) for k, v in config["environ"].items()} if "environ" in config else dict()
+    return {}
 
 
 

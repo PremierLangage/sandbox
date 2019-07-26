@@ -29,9 +29,10 @@ LOCK = threading.Lock()
 def create_container(name: str) -> Container:
     """Create a container with the paramaters defined in settings.py."""
     return docker.from_env().containers.run(
+        name=name,
         volumes={
             os.path.join(settings.DOCKER_VOLUME_HOST_BASEDIR, name): {
-                "bind": "/home/student",
+                "bind": "/home/docker",
                 "mode": "rw",
             },
         },
@@ -47,16 +48,16 @@ def initialise_container():
     CONTAINERS = list()
     
     # Deleting running container created from DOCKER_PARAMETERS["image"]
-    to_del = docker.from_env().containers.list(filters={
+    to_del = docker.from_env().containers.list(all=True, filters={
         "ancestor": settings.DOCKER_PARAMETERS["image"]
     })
     for c in to_del:
-        c.kill()
-        logger.info(f"Container {c.short_id} killed.")
+        c.remove(force=True)
+        logger.info(f"Container {c.short_id} removed.")
     
     # Purging any existing container environment.
     logger.info("Purging any existing container environment.")
-    if os.path.isdir(settings.DOCKER_VOLUME_HOST_BASEDIR):
+    if os.path.isdir(settings.DOCKER_VOLUME_HOST_BASEDIR):  # pragma: no cover
         shutil.rmtree(settings.DOCKER_VOLUME_HOST_BASEDIR)
     
     # Create containers.
@@ -90,42 +91,8 @@ class Sandbox:
         self.lock = threading.Lock()
     
     
-    def _reset(self):
-        """Reset a given container by killing it and overwriting it's instance with
-        a new one."""
-        global CONTAINERS
-        
-        try:
-            try:
-                self.container.kill()
-            except DockerException:
-                pass
-            
-            self = Sandbox(f"c{self.index}", self.index)
-            with LOCK:
-                CONTAINERS[self.index] = self
-            
-            logger.info(f"Successfully restarted container '{self.name}' of id '{self.index}'")
-        except DockerException:
-            logger.exception(f"Error while restarting container '{self.name}' of id '{self.index}'")
-    
-    
-    def extract_env(self, envid):
-        """Retrieve the environment from the container and write it
-        to [settings.ENVIRONMENT_ROOT]/[envid].tgz"""
-        path = os.path.join(settings.ENVIRONMENT_ROOT, envid) + ".tgz"
-        
-        self.lock.acquire()
-        
-        with tarfile.open(path, "w|gz") as tar:
-            for name in os.listdir(self.envpath):
-                tar.add(os.path.join(self.envpath, name), arcname=name)
-        
-        self.lock.release()
-    
-    
     @staticmethod
-    def __acquire() -> 'Sandbox':
+    def _acquire() -> 'Sandbox':
         """Return the first available container, None if none were available."""
         global CONTAINERS
         
@@ -133,8 +100,8 @@ class Sandbox:
         
         cw = next((c for c in CONTAINERS if c.available), None)
         if cw is not None:
-            CONTAINERS[cw.index].available = False
-            CONTAINERS[cw.index].used_since = time.time()
+            cw.available = False
+            cw.used_since = time.time()
             logger.info(f"Acquiring container '{cw.name}' of id '{cw.index}'")
         
         LOCK.release()
@@ -144,15 +111,17 @@ class Sandbox:
     
     @staticmethod
     def acquire() -> 'Sandbox':
-        """Try to acquire a container for <settings.WAIT_FOR_CONTAINER_DURATION> seconds."""
+        """Try to acquire a container for <settings.WAIT_FOR_CONTAINER_DURATION> seconds.
+        
+        Raises HTTPExceptions.SERVICE_UNAVAILABLE if no container were available in time."""
         start = time.time()
         while True:
-            container = Sandbox.__acquire()
+            container = Sandbox._acquire()
             if container is not None:
                 logger.debug(f"Acquiring a docker took {time.time() - start} secondes")
                 break
             time.sleep(0.1)
-            if time.time() - start > settings.WAIT_FOR_CONTAINER_DURATION:
+            if time.time() - start >= settings.WAIT_FOR_CONTAINER_DURATION:
                 raise HTTPExceptions.SERVICE_UNAVAILABLE.with_content(
                     "Sandbox overloaded, retry after a few secondes."
                 )
@@ -161,31 +130,74 @@ class Sandbox:
     
     
     @staticmethod
+    def count() -> int:
+        """Return the number of available container."""
+        global CONTAINERS
+        
+        return len(CONTAINERS)
+    
+    
+    @staticmethod
     def available() -> int:
         """Return the number of available container."""
         global CONTAINERS
         
-        LOCK.acquire()
-        count = len([c for c in CONTAINERS if c.available])
-        LOCK.release()
+        with LOCK:
+            count = len([c for c in CONTAINERS if c.available])
         
         return count
+    
+    
+    def extract_env(self, envid):
+        """Retrieve the environment from the container and write it
+        to [settings.ENVIRONMENT_ROOT]/[envid].tgz"""
+        self.lock.acquire()
+        
+        path = os.path.join(settings.ENVIRONMENT_ROOT, f"{envid}.tgz")
+        if os.path.isfile(path):
+            os.remove(path)
+        
+        with tarfile.open(path, "w:gz") as tar:
+            for name in os.listdir(self.envpath):
+                tar.add(os.path.join(self.envpath, name), arcname=name)
+        
+        self.lock.release()
+    
+    
+    def _reset(self):
+        """Reset a given container by killing it and overwriting it's instance with
+        a new one."""
+        global CONTAINERS
+        
+        try:
+            try:
+                self.container.remove(force=True)
+            except DockerException:  # pragma: no cover
+                logger.info("Could not remove container")
+            
+            self = Sandbox(f"c{self.index}", self.index)
+            with LOCK:
+                CONTAINERS[self.index] = self
+            logger.info(f"Successfully restarted container '{self.name}' of id '{self.index}'")
+        
+        except DockerException:  # pragma: no cover
+            logger.exception(f"Error while restarting container '{self.name}' of id '{self.index}'")
     
     
     def release(self):
         """Release this container."""
         global CONTAINERS
         
+        if self.available:
+            return
+        
         self.lock.acquire()
         
         try:
-            if os.path.isdir(self.envpath):
-                self.container.exec_run(["/bin/sh", "-c", "rm * -Rf"])
-                shutil.rmtree(self.envpath)
+            shutil.rmtree(self.envpath)
             os.makedirs(self.envpath)
             self.container.restart()
-            with LOCK:
-                CONTAINERS[self.index].available = True
+            self.available = True
             logger.info(f"Releasing container '{self.name}' of id '{self.index}'")
         
         except docker.errors.DockerException:
