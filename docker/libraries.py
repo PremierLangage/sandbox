@@ -1,12 +1,13 @@
 import json
 import os
 import subprocess
+import sys
 
 
 devnull = open(os.devnull, "w")
 
 python2 = subprocess.check_output(["python2", "--version"], stderr=subprocess.STDOUT).decode().split()[1].strip()
-python3 = subprocess.check_output(["python3", "--version"], stderr=subprocess.STDOUT).decode().split()[1].strip()
+python3 = ".".join(map(str, sys.version_info[:3]))
 java = " ".join(subprocess.check_output(["java", "--version"]).decode().split("\n")[0].split()[:2])
 gcc = subprocess.check_output(["gcc", "--version"]).decode().split("\n")[0].split()[3]
 perl = subprocess.check_output(["perl", "--version"]).decode().split("\n")[1].split()[8][2:-1]

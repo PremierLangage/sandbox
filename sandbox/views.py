@@ -15,8 +15,8 @@ from io import SEEK_END
 
 import docker
 from django.conf import settings
-from django.http import (HttpResponse, HttpResponseBadRequest, HttpResponseNotAllowed, HttpResponseNotFound,
-                         JsonResponse)
+from django.http import (HttpResponse, HttpResponseBadRequest, HttpResponseNotAllowed,
+                         HttpResponseNotFound, JsonResponse)
 from django.views.generic import View
 
 from . import utils
@@ -41,7 +41,7 @@ class EnvView(View):
         response = HttpResponse()
         response["Content-Length"] = os.stat(path).st_size
         response['Content-Type'] = "application/gzip"
-        response['Content-Disposition'] = ('attachment; filename=' + env + ".tgz")
+        response['Content-Disposition'] = f"attachment; filename={env}.tgz"
         return response
     
     
@@ -56,7 +56,7 @@ class EnvView(View):
         
         response["Content-Length"] = os.stat(path).st_size
         response['Content-Type'] = "application/gzip"
-        response['Content-Disposition'] = ('attachment; filename=' + env + ".tgz")
+        response['Content-Disposition'] = f"attachment; filename={env}.tgz"
         return response
 
 
@@ -96,20 +96,20 @@ def specifications(request):
     cpu_count = settings.DOCKER_PARAMETERS["cpuset_cpus"]
     if "-" in cpu_count:
         lower, upper = cpu_count.split("-")
-        cpu_count = upper - lower + 1
+        cpu_count = int(upper) - int(lower) + 1
     else:
         cpu_count = len(cpu_count.split(","))
     
-    infos = subprocess.check_output("cat /proc/cpuinfo", shell=True, universal_newlines=True)
+    infos = subprocess.check_output(["cat", "/proc/cpuinfo"], universal_newlines=True)
     for line in infos.strip().split("\n"):
         if "model name" in line:
             cpu_name = re.sub(r"\s*model name\s*:", "", line, 1).strip()
             break
-    else:
+    else:  # pragma: no cover
         cpu_name = ""
     
     available = Sandbox.available()
-    docker_version = subprocess.check_output("docker -v", shell=True, universal_newlines=True)
+    docker_version = subprocess.check_output(["docker", "-v"], universal_newlines=True)
     docker_version = docker_version.strip()[15:].split(",")[0]
     
     if ("storage_opt" in settings.DOCKER_PARAMETERS
@@ -124,7 +124,7 @@ def specifications(request):
             "running":   settings.DOCKER_COUNT - available,
             "available": available,
         },
-        "envvar":          settings.DOCKER_PARAMETERS["environment"],
+        "environ":         settings.DOCKER_PARAMETERS["environment"],
         "cpu":             {
             "count":  cpu_count,
             "period": settings.DOCKER_PARAMETERS["cpu_period"],
@@ -148,16 +148,18 @@ def specifications(request):
 
 
 def libraries(request):
+    """Returns the libraries installed on the containers."""
     if request.method != "GET":
         return HttpResponseNotAllowed(['GET'], f"405 Method Not Allowed : {request.method}")
     
-    response = docker.from_env().containers.run(settings.DOCKER_PARAMETERS["image"], "python3 /utils/libraries.py")
+    response = docker.from_env().containers.run(
+        settings.DOCKER_PARAMETERS["image"], "python3 /utils/libraries.py")
     return JsonResponse(json.loads(response))
 
 
 
 def execute(request):
-    """Allows to execute bash commands within an optionnal environment."""
+    """Allows to execute bash commands within an optional environment."""
     if request.method != "POST":
         return HttpResponseNotAllowed(['POST'], f"405 Method Not Allowed : {request.method}")
     
@@ -175,8 +177,7 @@ def execute(request):
         return HttpResponseBadRequest(f"'config' json is invalid - {e}")
     
     env = utils.executed_env(request, config)
-    commands = Command.from_request(config)
-    envvars = utils.parse_envvars(config)
+    commands = Command.from_config(config)
     result_path = utils.parse_result_path(config)
     save = utils.parse_save(config)
     
@@ -184,7 +185,7 @@ def execute(request):
     
     sandbox = Sandbox.acquire()
     
-    response = Executor(commands, sandbox, env, envvars, result_path, save).execute()
+    response = Executor(commands, sandbox, env, result_path, save).execute()
     threading.Thread(target=sandbox.release)
     
     logger.debug(f"Total execute request took : {time.time() - start} seconds")
