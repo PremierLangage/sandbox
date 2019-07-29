@@ -7,13 +7,11 @@ services:
 
 language: python
 
-python:
-  - '3.6'
-  - '3.7'
+python: 3.7
 
 
 before_install:
-  - ./install.sh
+  - ./bin/install.sh
 
 install:
   - pip install -U wheel setuptools
