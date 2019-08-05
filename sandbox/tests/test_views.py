@@ -397,7 +397,7 @@ class ExecuteTestCase(SandboxTestCase):
         self.assertEqual("", result["execution"][1]["stdout"])
         self.assertEqual(f"Sandbox timed out after 0.2 seconds\n", result["execution"][1]["stderr"])
         self.assertIsInstance(result["execution"][1]["time"], float)
-        self.assertLessEqual(result["execution"][1]["time"], 0.21)
+        self.assertLessEqual(result["execution"][1]["time"], 0.25)
     
     
     def test_execute_failing(self):
