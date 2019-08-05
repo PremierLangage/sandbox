@@ -5,7 +5,7 @@ import time
 from django.conf import settings
 from django_http_exceptions import HTTPExceptions
 
-from sandbox.utils import ENV1
+from .utils import ENV1
 from ..container import Sandbox
 from ..enums import SandboxErrCode
 from ..executor import Command, Executor

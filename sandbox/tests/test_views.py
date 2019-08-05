@@ -9,10 +9,10 @@ from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 from django_http_exceptions import HTTPExceptions
 
-from sandbox.container import Sandbox
-from sandbox.enums import SandboxErrCode
-from sandbox.tests.utils import EnvTestCase, SandboxTestCase
-from sandbox.utils import ENV1, ENV2
+from ..container import Sandbox
+from ..enums import SandboxErrCode
+from ..tests.utils import EnvTestCase, SandboxTestCase
+from .utils import ENV1, ENV2
 
 
 
