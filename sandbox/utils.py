@@ -7,6 +7,7 @@
 import io
 import os
 import tarfile
+import time
 import uuid
 from typing import BinaryIO, Optional
 
@@ -15,8 +16,17 @@ from django.http import HttpRequest
 from django_http_exceptions import HTTPExceptions
 
 
-ENV1 = "dae5f9a3-a911-4df4-82f8-b9343241ece5"
-ENV2 = "e77f958e-4757-4e8f-89eb-21a0153d53d4"
+
+def remove_outdated_env():
+    """Remove every file of MEDIA_ROOT that are outdated according to ENVIRONMENT_EXPIRATION."""
+    current_time = time.time()
+    
+    for f in os.listdir(settings.ENVIRONMENT_ROOT):
+        path = os.path.join(settings.ENVIRONMENT_ROOT, f)
+        creation_time = os.path.getctime(path)
+        
+        if (current_time - creation_time) >= settings.ENVIRONMENT_EXPIRATION:
+            os.remove(path)
 
 
 
