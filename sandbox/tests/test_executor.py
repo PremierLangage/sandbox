@@ -119,7 +119,7 @@ class CommandTestCase(SandboxTestCase):
         self.assertEqual("", result["stdout"])
         self.assertEqual(f"Sandbox timed out after 0.2 seconds\n", result["stderr"])
         self.assertIsInstance(result["time"], float)
-        self.assertLessEqual(result["time"], 0.21)
+        self.assertLessEqual(result["time"], 0.25)
 
 
 
