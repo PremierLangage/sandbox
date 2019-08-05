@@ -1,14 +1,36 @@
 import io
 import os
 import tarfile
+import time
+import uuid
 
-from django.test import RequestFactory, SimpleTestCase
+from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.urls import reverse
 from django_http_exceptions.exceptions import HTTPExceptions
 
-from sandbox.utils import ENV1, ENV2
-from .utils import EnvTestCase, SandboxTestCase, TEST_DIR
+from .utils import ENV1, ENV2, EnvTestCase, SandboxTestCase, TEST_DIR
 from .. import utils
+
+
+
+class RemoveOutdatedEnvTestCase(EnvTestCase):
+    
+    @override_settings(ENVIRONMENT_EXPIRATION=1)
+    def test_remove_outdated_env(self):
+        file1 = os.path.join(TEST_DIR, str(uuid.uuid4()))
+        file2 = os.path.join(TEST_DIR, str(uuid.uuid4()))
+        
+        open(file1, "w+").close()
+        time.sleep(1)
+        open(file2, "w+").close()
+        
+        self.assertTrue(os.path.exists(file1))
+        self.assertTrue(os.path.exists(file2))
+        
+        utils.remove_outdated_env()
+        
+        self.assertFalse(os.path.exists(file1))
+        self.assertTrue(os.path.exists(file2))
 
 
 

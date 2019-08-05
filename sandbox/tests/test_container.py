@@ -7,7 +7,7 @@ from django.conf import settings
 from django.test import override_settings
 from django_http_exceptions import HTTPExceptions
 
-from sandbox.tests.utils import SandboxTestCase, raises_docker_exception
+from .utils import SandboxTestCase, raises_docker_exception
 from ..container import Sandbox
 
 
