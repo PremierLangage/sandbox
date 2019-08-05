@@ -1,0 +1,502 @@
+{
+	"info": {
+		"_postman_id": "b1b5e16e-9b31-4a9d-87a1-5d40dae7a483",
+		"name": "Sandbox",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "/execute/",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "config",
+							"value": "",
+							"contentType": "application/json",
+							"description": "A json containing informations about the execution :\n\n```json\n{\n    \"commands\":[\n        \"[bash command 1]\",\n        { \n            \"command\": \" -[bash command 2]\",\n             \"timeout\": 2\n        },\n        { \n            \"command\": \"-[bash command 3]\",\n             \"timeout\": 5\n        },\n    ],\n    \"environ\": {\n            \"var1\": \"value1\",\n            \"var2\": \"value2\"\n    },\n    \"result_path\":\"file.json\",\n    \"environment\":\"[UUID4]\",\n    \"save\": [bool],\n}\n```\n\n**Mandatory fields** :\n\n* `command` - A list of bash command to be executed. A failing command (exit code different than **0**) will stop the sandbox, except if the command start with an hyphen `-`. Each command can also specify a timeout in seconds, like in the example.\n\n**Optionnal fields** :\n\n* `result_path` - Path to the file from which the `result` field of the response will be extracted. if `result_path` is absent from the request, `result` will not be present in the response.\n\n* `environ` - A list of environments variables  as al ist of objects containing the var name and its value.\n\n* `environment` - Use this environment stored in the sandbox as a base environment. File present in the body's tgz will be added to this environment (file with the same name are overwritten).\n\n* `save` - Boolean indicating if the resulting environment should be saved. If `true`, the environment's *UUID* will be sent in the response in the field `environment`. It'll be kept on the sandbox for a time define in the sandbox's settings. That expiration date will be sent in the response  in the `expire` field (ISO 8601 format). If the field `save` is missing, it is assumed to be `false`.",
+							"type": "text"
+						},
+						{
+							"key": "environment",
+							"contentType": "application/octet-stream",
+							"description": "*Optionnal*d\n\nA tar archive compressed with gzip (`.tgz` or `.tar;gz`) of your environment of execution.\n\nIf field `environment` is present in the *JSON*, the file present in the body's environment will be added to the one in the sandbox, overwritting file with the same name.",
+							"type": "file",
+							"src": []
+						}
+					]
+				},
+				"url": {
+					"raw": "/execute/",
+					"path": [
+						"execute",
+						""
+					]
+				},
+				"description": "Execute commands on the sandbox with the given environment, or an environment already present on the sandbox.\n\nThe `status` fields in the reponse indicate whether the execution succeeded or faild :\n\n* `0` - The execution was successful, or the last command's failure was ignored (through the used of `-`).\n* `> 0` - The last command exited failed, `status` will be set to this command's exit code.\n* `< 0` - An error occurred on the sandbox :\n\t* `-1` - Unknown error.\n\t* `-2` - Execution timed out.\n\t* `-3` - Result file could not be found at the indicated path.\n\nThe response's `total_time` is the total time taken by the whole execute request, it thus can be higher than the sum of each command's `time`."
+			},
+			"response": [
+				{
+					"name": "Ignore failure",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "config",
+									"value": "{\n    \"command\": [\n        \"-false\",\n        \"echo $((1+1))\"\n    ],\n}",
+									"contentType": "application/json",
+									"description": "A json containing informations about the execution :\n\n```json\n{\n    \"commands\":[\n        \"[bash command 1]\",\n        { \n            \"command\": \" -[bash command 2]\",\n             \"timeout\": 2\n        },\n        { \n            \"command\": \"-[bash command 3]\",\n             \"timeout\": 5\n        },\n    ],\n    \"environ\": {\n            \"var1\": \"value1\",\n            \"var2\": \"value2\"\n    },\n    \"result_path\":\"file.json\",\n    \"environment\":\"[UUID4]\",\n    \"save\": [bool],\n}\n```\n\n**Mandatory fields** :\n\n* `command` - A list of bash command to be executed. A failing command (exit code different than **0**) will stop the sandbox, except if the command start with an hyphen `-`. Each command can also specify a timeout in seconds, like in the example.\n\n**Optionnal fields** :\n\n* `result_path` - Path to the file from which the `result` field of the response will be extracted. if `result_path` is absent from the request, `result` will not be present in the response.\n\n* `environ` - A list of environments variables  as al ist of objects containing the var name and its value.\n\n* `environment` - Use this environment stored in the sandbox as a base environment. File present in the body's tgz will be added to this environment (file with the same name are overwritten).\n\n* `save` - Boolean indicating if the resulting environment should be saved. If `true`, the environment's *UUID* will be sent in the response in the field `environment`. It'll be kept on the sandbox for a time define in the sandbox's settings. That expiration date will be sent in the response  in the `expire` field (ISO 8601 format). If the field `save` is missing, it is assumed to be `false`.",
+									"type": "text"
+								},
+								{
+									"key": "environment",
+									"contentType": "application/octet-stream",
+									"description": "*Optionnal*\n\nA tar archive compressed with gzip (`.tgz` or `.tar;gz`) of your environment of execution.\n\nThis parameter will be ignored if the config *JSON* contains the `environment` key.",
+									"type": "file",
+									"src": [],
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "/execute/",
+							"path": [
+								"execute",
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json",
+							"description": "",
+							"type": "text"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"status\": 0,\n    \"execution\": [\n        {\n            \"command\": \"false\",\n            \"exit_code\": 1,\n            \"stdout\": \"\",\n            \"stderr\": \"\",\n            \"time\": 0.002222299575805664\n        },\n        {\n            \"command\": \"echo $((1+1))\",\n            \"exit_code\": 0,\n            \"stdout\": \"2\\n\",\n            \"stderr\": \"\",\n            \"time\": 0.0022759437561035156\n        }\n    ],\n    \"total_time\": 0.004444599151611328\n}"
+				},
+				{
+					"name": "Ok",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "config",
+									"value": "{\n    \"command\": [\n        \"echo \\\"Hello world\\\"\",\n        \"echo $((1+1))\"\n    ],\n}",
+									"contentType": "application/json",
+									"description": "A json containing informations about the execution :\n\n```json\n{\n    \"commands\":[\n        \"[bash command 1]\",\n        { \n            \"command\": \" -[bash command 2]\",\n             \"timeout\": 2\n        },\n        { \n            \"command\": \"-[bash command 3]\",\n             \"timeout\": 5\n        },\n    ],\n    \"environ\": {\n            \"var1\": \"value1\",\n            \"var2\": \"value2\"\n    },\n    \"result_path\":\"file.json\",\n    \"environment\":\"[UUID4]\",\n    \"save\": [bool],\n}\n```\n\n**Mandatory fields** :\n\n* `command` - A list of bash command to be executed. A failing command (exit code different than **0**) will stop the sandbox, except if the command start with an hyphen `-`. Each command can also specify a timeout in seconds, like in the example.\n\n**Optionnal fields** :\n\n* `result_path` - Path to the file from which the `result` field of the response will be extracted. if `result_path` is absent from the request, `result` will not be present in the response.\n\n* `environ` - A list of environments variables  as al ist of objects containing the var name and its value.\n\n* `environment` - Use this environment stored in the sandbox as a base environment. File present in the body's tgz will be added to this environment (file with the same name are overwritten).\n\n* `save` - Boolean indicating if the resulting environment should be saved. If `true`, the environment's *UUID* will be sent in the response in the field `environment`. It'll be kept on the sandbox for a time define in the sandbox's settings. That expiration date will be sent in the response  in the `expire` field (ISO 8601 format). If the field `save` is missing, it is assumed to be `false`.",
+									"type": "text"
+								},
+								{
+									"key": "environment",
+									"contentType": "application/octet-stream",
+									"description": "*Optionnal*\n\nA tar archive compressed with gzip (`.tgz` or `.tar;gz`) of your environment of execution.\n\nThis parameter will be ignored if the config *JSON* contains the `environment` key.",
+									"type": "file",
+									"src": [],
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "/execute/",
+							"path": [
+								"execute",
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json",
+							"description": "",
+							"type": "text"
+						}
+					],
+					"cookie": [],
+					"body": "{\n\t\"status\": 0,\n\t\"execution\": [\n\t\t{\n\t\t\t\"command\": \"echo \\\"Hello World !\\\"\",\n\t\t\t\"exit_code\": 0,\n\t\t\t\"stdout\": \"Hello World !\\n\",\n\t\t\t\"stderr\": \"\",\n\t\t\t\"time\": 0.002222299575805664\n\t\t},\n\t\t{\n\t\t\t\"command\": \"echo $((1+1))\",\n\t\t\t\"exit_code\": 0,\n\t\t\t\"stdout\": \"2\\n\",\n\t\t\t\"stderr\": \"\",\n\t\t\t\"time\": 0.002222299575805664\n\t\t}\n\t],\n    \"total_time\": 0.004444599151611328\n}"
+				},
+				{
+					"name": "Failing",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "config",
+									"value": "{\n    \"command\": [\n        \"echo \\\"Hello world\\\"\",\n        \"false\",\n        \"echo $((1+1))\"\n    ],\n}",
+									"contentType": "application/json",
+									"description": "A json containing informations about the execution :\n\n```json\n{\n    \"commands\":[\n        \"[bash command 1]\",\n        { \n            \"command\": \" -[bash command 2]\",\n             \"timeout\": 2\n        },\n        { \n            \"command\": \"-[bash command 3]\",\n             \"timeout\": 5\n        },\n    ],\n    \"environ\": {\n            \"var1\": \"value1\",\n            \"var2\": \"value2\"\n    },\n    \"result_path\":\"file.json\",\n    \"environment\":\"[UUID4]\",\n    \"save\": [bool],\n}\n```\n\n**Mandatory fields** :\n\n* `command` - A list of bash command to be executed. A failing command (exit code different than **0**) will stop the sandbox, except if the command start with an hyphen `-`. Each command can also specify a timeout in seconds, like in the example.\n\n**Optionnal fields** :\n\n* `result_path` - Path to the file from which the `result` field of the response will be extracted. if `result_path` is absent from the request, `result` will not be present in the response.\n\n* `environ` - A list of environments variables  as al ist of objects containing the var name and its value.\n\n* `environment` - Use this environment stored in the sandbox as a base environment. File present in the body's tgz will be added to this environment (file with the same name are overwritten).\n\n* `save` - Boolean indicating if the resulting environment should be saved. If `true`, the environment's *UUID* will be sent in the response in the field `environment`. It'll be kept on the sandbox for a time define in the sandbox's settings. That expiration date will be sent in the response  in the `expire` field (ISO 8601 format). If the field `save` is missing, it is assumed to be `false`.",
+									"type": "text"
+								},
+								{
+									"key": "environment",
+									"contentType": "application/octet-stream",
+									"description": "*Optionnal*\n\nA tar archive compressed with gzip (`.tgz` or `.tar;gz`) of your environment of execution.\n\nThis parameter will be ignored if the config *JSON* contains the `environment` key.",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "/execute/",
+							"path": [
+								"execute",
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json",
+							"description": "",
+							"type": "text"
+						}
+					],
+					"cookie": [],
+					"body": "{\n    \"status\": 1,\n    \"execution\": [\n    \t{\n\t\t\t\"command\": \"echo \\\"Hello World !\\\"\",\n\t\t\t\"exit_code\": 0,\n\t\t\t\"stdout\": \"Hello World !\\n\",\n\t\t\t\"stderr\": \"\",\n\t\t\t\"time\": 0.002222299575805664\n\t\t},\n        {\n            \"command\": \"false\",\n            \"exit_code\": 1,\n            \"stdout\": \"\",\n            \"stderr\": \"\",\n            \"time\": 0.002222299575805664\n        }\n    ],\n    \"total_time\": 0.004444599151611328\n}"
+				},
+				{
+					"name": "Sandbox overloaded",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "config",
+									"value": "",
+									"contentType": "application/json",
+									"description": "A json containing informations about the execution :\n\n```json\n{\n    \"commands\":[\n        \"[bash command 1]\",\n        { \n            \"command\": \" -[bash command 2]\",\n             \"timeout\": 2\n        },\n        { \n            \"command\": \"-[bash command 3]\",\n             \"timeout\": 5\n        },\n    ],\n    \"environ\": {\n            \"var1\": \"value1\",\n            \"var2\": \"value2\"\n    },\n    \"result_path\":\"file.json\",\n    \"environment\":\"[UUID4]\",\n    \"save\": [bool],\n}\n```\n\n**Mandatory fields** :\n\n* `command` - A list of bash command to be executed. A failing command (exit code different than **0**) will stop the sandbox, except if the command start with an hyphen `-`. Each command can also specify a timeout in seconds, like in the example.\n\n**Optionnal fields** :\n\n* `result_path` - Path to the file from which the `result` field of the response will be extracted. if `result_path` is absent from the request, `result` will not be present in the response.\n\n* `environ` - A list of environments variables  as al ist of objects containing the var name and its value.\n\n* `environment` - Use this environment stored in the sandbox as a base environment. File present in the body's tgz will be added to this environment (file with the same name are overwritten).\n\n* `save` - Boolean indicating if the resulting environment should be saved. If `true`, the environment's *UUID* will be sent in the response in the field `environment`. It'll be kept on the sandbox for a time define in the sandbox's settings. That expiration date will be sent in the response  in the `expire` field (ISO 8601 format). If the field `save` is missing, it is assumed to be `false`.",
+									"type": "text"
+								},
+								{
+									"key": "environment",
+									"contentType": "application/octet-stream",
+									"description": "*Optionnal*\n\nA tar archive compressed with gzip (`.tgz` or `.tar;gz`) of your environment of execution.\n\nThis parameter will be ignored if the config *JSON* contains the `environment` key.",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "/execute/",
+							"path": [
+								"execute",
+								""
+							]
+						}
+					},
+					"status": "Service Unavailable",
+					"code": 503,
+					"_postman_previewlanguage": null,
+					"header": null,
+					"cookie": [],
+					"body": ""
+				},
+				{
+					"name": "With environment",
+					"originalRequest": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "config",
+									"value": "{\n    \"command\": [\n        \"echo $((1+1)) > result.txt\"\n    ],\n    \"result_path\": \"result.txt\",\n    \"save\": true\n}",
+									"contentType": "application/json",
+									"description": "A json containing informations about the execution :\n\n```json\n{\n    \"commands\":[\n        \"[bash command 1]\",\n        { \n            \"command\": \" -[bash command 2]\",\n             \"timeout\": 2\n        },\n        { \n            \"command\": \"-[bash command 3]\",\n             \"timeout\": 5\n        },\n    ],\n    \"environ\": {\n            \"var1\": \"value1\",\n            \"var2\": \"value2\"\n    },\n    \"result_path\":\"file.json\",\n    \"environment\":\"[UUID4]\",\n    \"save\": [bool],\n}\n```\n\n**Mandatory fields** :\n\n* `command` - A list of bash command to be executed. A failing command (exit code different than **0**) will stop the sandbox, except if the command start with an hyphen `-`. Each command can also specify a timeout in seconds, like in the example.\n\n**Optionnal fields** :\n\n* `result_path` - Path to the file from which the `result` field of the response will be extracted. if `result_path` is absent from the request, `result` will not be present in the response.\n\n* `environ` - A list of environments variables  as al ist of objects containing the var name and its value.\n\n* `environment` - Use this environment stored in the sandbox as a base environment. File present in the body's tgz will be added to this environment (file with the same name are overwritten).\n\n* `save` - Boolean indicating if the resulting environment should be saved. If `true`, the environment's *UUID* will be sent in the response in the field `environment`. It'll be kept on the sandbox for a time define in the sandbox's settings. That expiration date will be sent in the response  in the `expire` field (ISO 8601 format). If the field `save` is missing, it is assumed to be `false`.",
+									"type": "text"
+								},
+								{
+									"key": "environment",
+									"contentType": "application/octet-stream",
+									"description": "*Optionnal*\n\nA tar archive compressed with gzip (`.tgz` or `.tar;gz`) of your environment of execution.\n\nThis parameter will be ignored if the config *JSON* contains the `environment` key.",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "/execute/",
+							"path": [
+								"execute",
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": [
+						{
+							"key": "Content-Type",
+							"value": "application/json",
+							"description": "",
+							"type": "text"
+						}
+					],
+					"cookie": [],
+					"body": "{\n\t\"status\": 0,\n\t\"execution\": [\n\t\t{\n\t\t\t\"command\": \"echo $((1+1)) > result.txt\",\n\t\t\t\"exit_code\": 0,\n\t\t\t\"stdout\": \"\",\n\t\t\t\"stderr\": \"\",\n\t\t\t\"time\": 0.002222299575805664\n\t\t}\n\t],\n    \"total_time\": 0.004444599151611328,\n\t\"result\": \"2\",\n\t\"environment\": \"e8c5995b-7049-4b04-8440-5d9d914360fc\",\n\t\"expire\": \"20190705T130535Z\"\n}"
+				}
+			]
+		},
+		{
+			"name": "/environments/:uuid4/",
+			"request": {
+				"method": "HEAD",
+				"header": [],
+				"url": {
+					"raw": "/environments/:uuid4/",
+					"path": [
+						"environments",
+						":uuid4",
+						""
+					],
+					"variable": [
+						{
+							"description": "*UUID4* corresponding to the desired environment.",
+							"key": "uuid4",
+							"value": ""
+						}
+					]
+				},
+				"description": "Check if an environment corresponding to the `uuid4` exists on the sandbox."
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "HEAD",
+						"header": [],
+						"url": {
+							"raw": "/environment/7b045e0f-be38-487d-a5ff-ee4113acb4b3/",
+							"path": [
+								"environment",
+								"7b045e0f-be38-487d-a5ff-ee4113acb4b3",
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [],
+					"cookie": [],
+					"body": ""
+				}
+			]
+		},
+		{
+			"name": "/environments/:uuid4/",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "/environments/:uuid4/",
+					"path": [
+						"environments",
+						":uuid4",
+						""
+					],
+					"variable": [
+						{
+							"description": "*UUID4* corresponding to the desired environment.",
+							"key": "uuid4",
+							"value": ""
+						}
+					]
+				},
+				"description": "Retrieve the environment (as a `.tgz`) corresponding to the `uuid4`."
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "/environments/:uuid4/",
+							"path": [
+								"environments",
+								":uuid4",
+								""
+							],
+							"variable": [
+								{
+									"description": "*UUID4* corresponding to the desired environment.",
+									"key": "uuid4",
+									"value": ""
+								}
+							]
+						},
+						"description": "Retrieve the environment (as a `.tgz`) corresponding to the `uuid4`."
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": null,
+					"header": [],
+					"cookie": [],
+					"body": ""
+				}
+			]
+		},
+		{
+			"name": "/files/:uuid4/:path",
+			"request": {
+				"method": "HEAD",
+				"header": [],
+				"url": {
+					"raw": "/files/:uuid4/:path",
+					"path": [
+						"files",
+						":uuid4",
+						":path"
+					],
+					"variable": [
+						{
+							"description": "*UUID4* of the environment from which the file will be retrieve.",
+							"key": "uuid4",
+							"value": ""
+						},
+						{
+							"description": "Relative path to the file in the environment.",
+							"key": "path",
+							"value": ""
+						}
+					]
+				},
+				"description": "Used to check if a file exists in a specific environment."
+			},
+			"response": []
+		},
+		{
+			"name": "/files/:uuid4/:path",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "/files/:uuid4/:path",
+					"path": [
+						"files",
+						":uuid4",
+						":path"
+					],
+					"variable": [
+						{
+							"description": "*UUID4* of the environment from which the file will be retrieve.",
+							"key": "uuid4",
+							"value": ""
+						},
+						{
+							"description": "Relative path to the file in the environment.",
+							"key": "path",
+							"value": ""
+						}
+					]
+				},
+				"description": "Used to retrieve a file in a specific environment. Response's `Content-Type` will always be `application/octet-stream`."
+			},
+			"response": []
+		},
+		{
+			"name": "/specifications/",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "/stats/",
+					"path": [
+						"stats",
+						""
+					]
+				},
+				"description": "Retrieves informations about the sandbox, like the specifications of the containers, and the number of running containers.\n\nField `memory` -> `storage` can be equal to `host` if not limit was set."
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "/stats/",
+							"path": [
+								"stats",
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": null,
+					"cookie": [],
+					"body": "{\n\t\"containers\": {\n\t\t\"total\": 20,\n\t\t\"runnning\": 5,\n\t\t\"available\": 15\n\t},\n\t\"envvar\": {\n\t\t\"var1\": \"val1\", \n\t\t\"var2\": \"val2\"\n\t},\n\t\"cpu\": {\n\t\t\"count\": 1,\n\t\t\"name\": \"Intel Xeon E5-2620 V4 Broadwell-EP\",\n\t\t\"period\": 100,\n\t\t\"shares\": 1024,\n\t\t\"quota\": 0\n\t},\n\t\"memory\": {\n\t\t\"limit\": \"100m\",\n\t\t\"swap\": \"100m\",\n\t\t\"storage\": \"200m\"\n\t},\n\t\"docker_version\": \"18.09.7\",\n\t\"sandbox_version\": \"2.0.0\",\n\t\"execute_timeout\": 5.0,\n\t\"expiration\": 86400\n}"
+				}
+			]
+		},
+		{
+			"name": "/libraries/",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "/librairies/",
+					"path": [
+						"librairies",
+						""
+					]
+				},
+				"description": "Returns the librairies installed in the containers."
+			},
+			"response": [
+				{
+					"name": "200",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "/librairies/",
+							"path": [
+								"librairies",
+								""
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "json",
+					"header": null,
+					"cookie": [],
+					"body": "{\n    \"python3\":\"[version]\",\n    \"python2\":\"[version]\",\n    \"java\":\"[jdk] [version]\",\n    \"gcc\":\"[version]\",\n    \"perl\":\"[version]\",\n    \"psql\":\"[version]\",\n    \"librairies\": {\n        \"system\": {\n            \"[lib1]\": \"[version]\",\n            \"[lib2]\": \"[version]\"\n        },\n        \"python\": {\n            \"[lib1]\": \"[version]\",\n            \"[lib2]\": \"[version]\"\n        },\n        \"perl\": {\n            \"[lib1]\": \"[version]\",\n            \"[lib2]\": \"[version]\"\n        },\n        \"c\":{\n            \"[lib1]\": \"[version]\",\n            \"[lib2]\": \"[version]\"\n        }\n    }\n}"
+				}
+			]
+		}
+	]
+}
