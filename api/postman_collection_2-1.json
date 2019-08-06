@@ -36,7 +36,7 @@
 						""
 					]
 				},
-				"description": "Execute commands on the sandbox with the given environment, or an environment already present on the sandbox.\n\nThe `status` fields in the reponse indicate whether the execution succeeded or faild :\n\n* `0` - The execution was successful, or the last command's failure was ignored (through the used of `-`).\n* `> 0` - The last command exited failed, `status` will be set to this command's exit code.\n* `< 0` - An error occurred on the sandbox :\n\t* `-1` - Unknown error.\n\t* `-2` - Execution timed out.\n\t* `-3` - Result file could not be found at the indicated path.\n\nThe response's `total_time` is the total time taken by the whole execute request, it thus can be higher than the sum of each command's `time`."
+				"description": "Execute commands on the sandbox with the given environment, or an environment already present on the sandbox.\n\nThe `status` fields in the reponse indicate whether the execution succeeded or faild :\n\n* `0` - The execution was successful, or the last command's failure was ignored (through the used of `-`).\n* `> 0` - The last command exited failed, `status` will be set to this command's exit code.\n* `< 0` - An error occurred on the sandbox :\n\t* `-1` - Unknown error.\n\t* `-2` - Execution timed out.\n\t* `-3` - Result file could not be found at the indicated path.\n\t* `-4` - Result file is not encoded in UTF-8.\n\nThe response's `total_time` is the total time taken by the whole execute request, it thus can be higher than the sum of each command's `time`."
 			},
 			"response": [
 				{
