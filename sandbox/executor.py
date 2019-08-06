@@ -142,7 +142,7 @@ class Executor:
             self.env_path = None
     
     
-    def __move_env_to_container(self):
+    def _move_env_to_container(self):
         """Send the tar to the Docker and untar it inside the Docker"""
         start = time.time()
         
@@ -152,18 +152,13 @@ class Executor:
         logger.debug(f"Moving environment to container took : {time.time() - start} seconds")
     
     
-    def __get_result(self) -> Optional[str]:
+    def _get_result(self) -> Optional[str]:
         """Return the content of /home/docker/<path> if found, an empty string otherwise."""
         start = time.time()
-        
-        try:
-            with open(os.path.join(self.sandbox.envpath, self.result_path)) as f:
-                content = f.read()
-            return content.strip()
-        except FileNotFoundError:
-            return None
-        finally:
-            logger.debug(f"Getting result from container took : {time.time() - start} seconds")
+        with open(os.path.join(self.sandbox.envpath, self.result_path), encoding="UTF-8") as f:
+            content = f.read()
+        logger.debug(f"Getting result from container took : {time.time() - start} seconds")
+        return content.strip()
     
     
     def execute(self) -> dict:
@@ -171,7 +166,7 @@ class Executor:
         start = time.time()
         
         if self.env_path is not None:
-            self.__move_env_to_container()
+            self._move_env_to_container()
         
         execution = list()
         
@@ -183,12 +178,15 @@ class Executor:
                 break
         else:
             status = 0
-        
+
         result = None
         if self.result_path is not None:
-            result = self.__get_result()
-            if result is None:
+            try:
+                result = self._get_result()
+            except FileNotFoundError:
                 status = SandboxErrCode.RESULT_NOT_FOUND
+            except UnicodeDecodeError:
+                status = SandboxErrCode.RESULT_NOT_UTF8
         
         response = {
             "status":     status,
