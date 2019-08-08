@@ -57,7 +57,7 @@ REGEX_SITE='^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)+([A-Za-z0-9]
 REGEX_EMAIL='^[a-zA-Z][a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$'
 
 while true; do
-    read -p "Do you wish to use HTTPS instead of HTTP [y/n] ? " yn
+    read -p -r "Do you wish to use HTTPS instead of HTTP [y/n] ? " yn
     case $yn in
         [Yy]* ) PORT=443; echo -n "$Green"; echo "HTTPS will be used.$Color_Off"; break;;
         [Nn]* ) PORT=80; echo -n "$Green"; echo "HTTP will be used.$Color_Off"; break;;
