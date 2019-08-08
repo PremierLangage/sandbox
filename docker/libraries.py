@@ -6,21 +6,22 @@ import sys
 
 devnull = open(os.devnull, "w")
 
-python2 = subprocess.check_output(["python2", "--version"], stderr=subprocess.STDOUT).decode().split()[1].strip()
+python2 = subprocess.check_output(["/usr/bin/python2", "--version"], stderr=subprocess.STDOUT).decode().split()[1].strip()
 python3 = ".".join(map(str, sys.version_info[:3]))
-java = " ".join(subprocess.check_output(["java", "--version"]).decode().split("\n")[0].split()[:2])
-gcc = subprocess.check_output(["gcc", "--version"]).decode().split("\n")[0].split()[3]
-perl = subprocess.check_output(["perl", "--version"]).decode().split("\n")[1].split()[8][2:-1]
-postgres = subprocess.check_output(["psql", "--version"]).decode().split()[2]
+java = " ".join(subprocess.check_output(["/usr/bin/java", "--version"]).decode().split("\n")[0].split()[:2])
+gcc = subprocess.check_output(["/usr/bin/gcc", "--version"]).decode().split("\n")[0].split()[3]
+perl = subprocess.check_output(["/usr/bin/perl", "--version"]).decode().split("\n")[1].split()[8][2:-1]
+postgres = subprocess.check_output(["/usr/bin/psql", "--version"]).decode().split()[2]
 
 system_packages = dict()
-command = "dpkg --get-selections | awk '/php/{print $1}' | xargs dpkg-query --show $1"
-for line in subprocess.check_output(command, shell=True, stderr=devnull).decode().split("\n")[:-1]:
+command = "dpkg --get-selections | awk '{print $1}' | xargs dpkg-query --show $1"
+commands = ["/bin/bash", "-c", command]
+for line in subprocess.check_output(commands, stderr=devnull).decode().split("\n")[:-1]:
     lib, version = [t for t in line.split() if t]
     system_packages[lib] = version
 
 python_modules = dict()
-for line in subprocess.check_output(["pip", "freeze"], stderr=devnull).decode().split("\n")[:-1]:
+for line in subprocess.check_output(["/usr/local/bin/pip", "freeze"], stderr=devnull).decode().split("\n")[:-1]:
     lib, version = line.split("==")
     python_modules[lib] = version
 
@@ -35,8 +36,9 @@ for line in lines:
     c_libs[lib] = version
 
 perl_modules = dict()
-subprocess.check_output("yes |cpan -l", stderr=devnull, shell=True)
-for line in subprocess.check_output(["cpan", "-l"], stderr=devnull).decode().split("\n")[1:-1]:
+commands = ["/bin/bash", "-c", "yes | /usr/bin/cpan -l"]
+subprocess.check_output(commands, stderr=devnull)
+for line in subprocess.check_output(["/usr/bin/cpan", "-l"], stderr=devnull).decode().split("\n")[1:-1]:
     lib, version = line.split("\t")
     if version == "undef":
         version = "?"

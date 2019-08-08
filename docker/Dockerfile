@@ -75,7 +75,7 @@ COPY libraries.py /utils/libraries.py
 # Cleaning /tmp
 RUN rm -Rf /tmp/*
 
-RUN yes | cpan -l &> /dev/null
+RUN yes | cpan -l > /dev/null 2>&1
 
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
