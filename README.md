@@ -1,9 +1,9 @@
-[![Build Status](https://travis-ci.org/PremierLangage/sandbox.svg?branch=master)](https://travis-ci.org/PremierLangage/sandbox)
-[![codecov](https://codecov.io/gh/PremierLangage/sandbox/branch/master/graph/badge.svg)](https://codecov.io/gh/PremierLangage/sandbox)
-[![CodeFactor](https://www.codefactor.io/repository/github/PremierLangage/sandbox/badge)](https://www.codefactor.io/repository/github/PremierLangage/sandbox)
+[![Build Status](https://travis-ci.org/qcoumes/sandbox.svg?branch=master)](https://travis-ci.org/qcoumes/sandbox)
+[![codecov](https://codecov.io/gh/qcoumes/sandbox/branch/master/graph/badge.svg)](https://codecov.io/gh/qcoumes/sandbox)
+[![CodeFactor](https://www.codefactor.io/repository/github/qcoumes/sandbox/badge)](https://www.codefactor.io/repository/github/qcoumes/sandbox)
 [![Documentation](https://img.shields.io/badge/docs-passing-brightgreen.svg)](https://documenter.getpostman.com/view/7955851/S1a915EG?version=latest)
 [![Python 3.5+](https://img.shields.io/badge/python-3.5+-brightgreen.svg)](#)
-[![License MIT](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://github.com/PremierLangage/sandbox/blob/master/LICENSE)
+[![License MIT](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://github.com/qcoumes/sandbox/blob/master/LICENSE)
  
 # Installation
 
