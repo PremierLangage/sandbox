@@ -1,12 +1,19 @@
+# test_executor.py
+#
+# Authors:
+#   - Coumes Quentin <coumes.quentin@gmail.com>
+
+
 import os
 import tarfile
 import time
 
 from django.conf import settings
+from django.test import override_settings
 from django_http_exceptions import HTTPExceptions
 
-from .utils import ENV1
-from ..container import Sandbox
+from .utils import ENV1, RESOURCES_LIB_ROOT
+from ..containers import Sandbox
 from ..enums import SandboxErrCode
 from ..executor import Command, Executor
 from ..tests.utils import SandboxTestCase
@@ -224,6 +231,7 @@ class ExecutorTestCase(SandboxTestCase):
         self.assertEqual(SandboxErrCode.RESULT_NOT_FOUND, result["status"])
         self.assertEqual(1, len(result["execution"]))
     
+    
     def test_execute_result_not_true(self):
         s = Sandbox.acquire()
         cmd = "dd if=/dev/urandom of=binary bs=1M count=10"
@@ -232,3 +240,41 @@ class ExecutorTestCase(SandboxTestCase):
         result = e.execute()
         self.assertEqual(SandboxErrCode.RESULT_NOT_UTF8, result["status"])
         self.assertEqual(1, len(result["execution"]))
+    
+    
+    @override_settings(EXTERNAL_LIBRARIES_ROOT=RESOURCES_LIB_ROOT)
+    def test_execute_external_lib_in_path(self):
+        s = Sandbox.acquire()
+        cmd = 'echo $PATH > result.txt'
+        e = Executor([Command(cmd)], s, result="result.txt")
+        
+        result = e.execute()
+        self.assertEqual(0, result["status"])
+        self.assertEqual(1, len(result["execution"]))
+        self.assertIn("/utils/libs", result["result"])
+    
+    
+    @override_settings(EXTERNAL_LIBRARIES_ROOT=RESOURCES_LIB_ROOT)
+    def test_execute_external_lib_in_pythonpath(self):
+        s = Sandbox.acquire()
+        cmd = 'echo $PYTHONPATH > result.txt'
+        e = Executor([Command(cmd)], s, result="result.txt")
+        
+        result = e.execute()
+        self.assertEqual(0, result["status"])
+        self.assertEqual(1, len(result["execution"]))
+        self.assertIn("/utils/libs", result["result"])
+    
+    
+    @override_settings(EXTERNAL_LIBRARIES_ROOT=RESOURCES_LIB_ROOT)
+    def test_execute_external_lib_in_path_import(self):
+        Sandbox.reset_all()  # Ensure every container use RESOURCES_LIB_ROOT
+        s = Sandbox.acquire()
+        
+        cmd = 'python3 -c "from dummy_lib.dummy import dummy_func;dummy_func()" > result.txt'
+        e = Executor([Command(cmd)], s, result="result.txt")
+        
+        result = e.execute()
+        self.assertEqual(0, result["status"])
+        self.assertEqual(1, len(result["execution"]))
+        self.assertEqual("Im a dummy function !", result["result"])

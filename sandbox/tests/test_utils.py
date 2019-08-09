@@ -1,36 +1,20 @@
+# test_utils.py
+#
+# Authors:
+#   - Coumes Quentin <coumes.quentin@gmail.com>
+
+
 import io
 import os
 import tarfile
-import time
-import uuid
 
-from django.test import RequestFactory, SimpleTestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase
 from django.urls import reverse
 from django_http_exceptions.exceptions import HTTPExceptions
 
-from .utils import ENV1, ENV2, EnvTestCase, SandboxTestCase, TEST_DIR
+from .utils import (ENV1, ENV2, EnvTestCase, LibTestCase, SandboxTestCase, TEST_ENVIRONMENT_ROOT,
+                    TEST_EXTERNAL_LIBRARIES_ROOT)
 from .. import utils
-
-
-
-class RemoveOutdatedEnvTestCase(EnvTestCase):
-    
-    @override_settings(ENVIRONMENT_EXPIRATION=1)
-    def test_remove_outdated_env(self):
-        file1 = os.path.join(TEST_DIR, str(uuid.uuid4()))
-        file2 = os.path.join(TEST_DIR, str(uuid.uuid4()))
-        
-        open(file1, "w+").close()
-        time.sleep(1)
-        open(file2, "w+").close()
-        
-        self.assertTrue(os.path.exists(file1))
-        self.assertTrue(os.path.exists(file2))
-        
-        utils.remove_outdated_env()
-        
-        self.assertFalse(os.path.exists(file1))
-        self.assertTrue(os.path.exists(file2))
 
 
 
@@ -76,8 +60,8 @@ class MergeTarGZTestCase(EnvTestCase):
         ├── file2.txt # Contains 'env2'
         └── file3.txt # Contains 'both1'
         """
-        env1 = open(os.path.join(TEST_DIR, f"{ENV1}.tgz"), "rb")
-        env2 = open(os.path.join(TEST_DIR, f"{ENV2}.tgz"), "rb")
+        env1 = open(os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV1}.tgz"), "rb")
+        env2 = open(os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV2}.tgz"), "rb")
         result = utils.merge_tar_gz(env1, env2)
         tar = tarfile.open(fileobj=result, mode="r:gz")
         
@@ -114,7 +98,7 @@ class GetEnvTestCase(SandboxTestCase):
     
     def test_get_env_ok(self):
         self.assertEqual(
-            os.path.join(TEST_DIR, f"{ENV1}.tgz"),
+            os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV1}.tgz"),
             utils.get_env(ENV1)
         )
     
@@ -163,19 +147,20 @@ class ExecutedEnvTestCase(SandboxTestCase):
         request = self.factory.post(reverse("sandbox:execute"))
         env_uuid = utils.executed_env(request, {"environment": ENV1})
         
-        env1_path = os.path.join(TEST_DIR, f"{ENV1}.tgz")
-        executed_env_path = os.path.join(TEST_DIR, "%s.tgz" % env_uuid)
+        env1_path = os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV1}.tgz")
+        executed_env_path = os.path.join(TEST_ENVIRONMENT_ROOT, "%s.tgz" % env_uuid)
         with open(env1_path, "rb") as env1, open(executed_env_path, "rb") as executed_env:
             self.assertEqual(env1.read(), executed_env.read())
     
     
     def test_executed_env_only_body(self):
         request = self.factory.post(reverse("sandbox:execute"))
-        request.FILES["environment"] = open(os.path.join(TEST_DIR, f"{ENV2}.tgz"), "rb")
+        request.FILES["environment"] = open(os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV2}.tgz"),
+                                            "rb")
         
         env_uuid = utils.executed_env(request, {})
-        env2_path = os.path.join(TEST_DIR, f"{ENV2}.tgz")
-        executed_env_path = os.path.join(TEST_DIR, "%s.tgz" % env_uuid)
+        env2_path = os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV2}.tgz")
+        executed_env_path = os.path.join(TEST_ENVIRONMENT_ROOT, "%s.tgz" % env_uuid)
         with open(env2_path, "rb") as env2, open(executed_env_path, "rb") as executed_env:
             self.assertEqual(env2.read(), executed_env.read())
     
@@ -183,11 +168,12 @@ class ExecutedEnvTestCase(SandboxTestCase):
     def test_executed_env_sandbox_and_body(self):
         """See 'test_merge_tar_gz()' for information about the tests done."""
         request = self.factory.post(reverse("sandbox:execute"))
-        request.FILES["environment"] = open(os.path.join(TEST_DIR, f"{ENV1}.tgz"), "rb")
+        request.FILES["environment"] = open(os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV1}.tgz"),
+                                            "rb")
         
         env_uuid = utils.executed_env(request, {"environment": ENV2})
         
-        with tarfile.open(os.path.join(TEST_DIR, "%s.tgz" % env_uuid), "r:gz") as tar:
+        with tarfile.open(os.path.join(TEST_ENVIRONMENT_ROOT, "%s.tgz" % env_uuid), "r:gz") as tar:
             expected = {
                 "",
                 "dir",
@@ -285,3 +271,36 @@ class ParseSavePathTestCase(SimpleTestCase):
         
         with self.assertRaises(HTTPExceptions.BAD_REQUEST):
             utils.parse_save(config)
+
+
+
+class CloneTestCase(LibTestCase):
+    
+    def test_clone_ok(self):
+        path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
+        self.assertFalse(os.path.isdir(path))
+        self.assertEqual(0, utils.clone("dummy", "https://github.com/qcoumes/dummy.git"))
+        self.assertTrue(os.path.isdir(path))
+        self.assertTrue(os.path.isdir(os.path.join(path, ".git")))
+    
+    
+    def test_clone_fail(self):
+        path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
+        os.mkdir(path)
+        open(os.path.join(path, "file"), "w+").close()
+        self.assertNotEqual(0, utils.clone("dummy", "https://github.com/qcoumes/dummy.git"))
+        self.assertFalse(os.path.isdir(os.path.join(path, ".git")))
+
+
+
+class PullTestCase(LibTestCase):
+    
+    def test_pull_ok(self):
+        utils.clone("dummy", "https://github.com/qcoumes/dummy.git")
+        self.assertEqual(0, utils.pull("dummy", "https://github.com/qcoumes/dummy.git"))
+    
+    
+    def test_pull_fail(self):
+        path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
+        os.mkdir(path)
+        self.assertNotEqual(0, utils.pull("dummy", "https://github.com/qcoumes/dummy.git"))

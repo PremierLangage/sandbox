@@ -1,3 +1,9 @@
+# test_containers.py
+#
+# Authors:
+#   - Coumes Quentin <coumes.quentin@gmail.com>
+
+
 import os
 import tarfile
 import time
@@ -8,7 +14,7 @@ from django.test import override_settings
 from django_http_exceptions import HTTPExceptions
 
 from .utils import SandboxTestCase, raises_docker_exception
-from ..container import Sandbox
+from ..containers import Sandbox
 
 
 

@@ -1,4 +1,4 @@
-# container.py
+# containers.py
 #
 # Authors:
 #   - Coumes Quentin <coumes.quentin@gmail.com>
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 CONTAINERS = list()
 
-LOCK = threading.Lock()
+LOCK = threading.RLock()
 
 
 
@@ -34,6 +34,10 @@ def create_container(name: str) -> Container:
             os.path.join(settings.DOCKER_VOLUME_HOST_BASEDIR, name): {
                 "bind": "/home/docker",
                 "mode": "rw",
+            },
+            settings.EXTERNAL_LIBRARIES_ROOT:                        {
+                "bind": "/utils/libs/",
+                "mode": "ro",
             },
         },
         **settings.DOCKER_PARAMETERS
@@ -94,8 +98,6 @@ class Sandbox:
     @staticmethod
     def _acquire() -> 'Sandbox':
         """Return the first available container, None if none were available."""
-        global CONTAINERS
-        
         LOCK.acquire()
         
         cw = next((c for c in CONTAINERS if c.available), None)
@@ -132,16 +134,12 @@ class Sandbox:
     @staticmethod
     def count() -> int:
         """Return the number of available container."""
-        global CONTAINERS
-        
         return len(CONTAINERS)
     
     
     @staticmethod
     def available() -> int:
         """Return the number of available container."""
-        global CONTAINERS
-        
         with LOCK:
             count = len([c for c in CONTAINERS if c.available])
         
@@ -164,7 +162,7 @@ class Sandbox:
         self.lock.release()
     
     
-    def _reset(self):
+    def reset(self):
         """Reset a given container by killing it and overwriting it's instance with
         a new one."""
         global CONTAINERS
@@ -184,10 +182,16 @@ class Sandbox:
             logger.exception(f"Error while restarting container '{self.name}' of id '{self.index}'")
     
     
+    @classmethod
+    def reset_all(cls):
+        """Reset every containers of CONTAINERS."""
+        with LOCK:
+            for c in CONTAINERS:
+                c.reset()
+    
+    
     def release(self):
         """Release this container."""
-        global CONTAINERS
-        
         if self.available:
             return
         
@@ -202,6 +206,6 @@ class Sandbox:
         
         except docker.errors.DockerException:
             logger.info(f"Could not release container '{self.name}' of id '{self.index}'")
-            self._reset()
+            self.reset()
         
         self.lock.release()
