@@ -57,6 +57,9 @@ RUN pip3 install \
 RUN update-alternatives --install /usr/bin/java java  /usr/lib/jvm/java-11-openjdk-amd64/bin/java 2
 RUN update-alternatives --install /usr/bin/javac javac  /usr/lib/jvm/java-11-openjdk-amd64/bin/javac 2
 RUN mkdir /utils
+RUN mkdir /utils/libs/
+ENV PATH="/utils/libs/:${PATH}"
+ENV PYTHONPATH="/utils/libs/:${PYTHONPATH}"
 RUN wget \
     https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.4.0-M1/junit-platform-console-standalone-1.4.0-M1.jar \
     -O- > /utils/junit-platform-console-standalone.jar
