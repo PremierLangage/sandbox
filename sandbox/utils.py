@@ -5,9 +5,11 @@
 
 
 import io
+import locale
+import logging
 import os
+import subprocess
 import tarfile
-import time
 import uuid
 from typing import BinaryIO, Optional
 
@@ -16,17 +18,9 @@ from django.http import HttpRequest
 from django_http_exceptions import HTTPExceptions
 
 
+logger = logging.getLogger(__name__)
 
-def remove_outdated_env():
-    """Remove every file of MEDIA_ROOT that are outdated according to ENVIRONMENT_EXPIRATION."""
-    current_time = time.time()
-    
-    for f in os.listdir(settings.ENVIRONMENT_ROOT):
-        path = os.path.join(settings.ENVIRONMENT_ROOT, f)
-        creation_time = os.path.getctime(path)
-        
-        if (current_time - creation_time) >= settings.ENVIRONMENT_EXPIRATION:
-            os.remove(path)
+GIT_LANG = '.'.join(locale.getdefaultlocale())
 
 
 
@@ -176,3 +170,41 @@ def parse_save(config: dict) -> bool:
                 f'save must be a boolean, not {type(config["save"])}')
         return config["save"]
     return False
+
+
+
+def clone(alias: str, url: str) -> int:
+    """Execute a 'git clone <url> <alias>' inside EXTERNAL_LIBRARIES_ROOT, returning the command's
+    status code."""
+    cwd = os.getcwd()
+    try:
+        os.chdir(settings.EXTERNAL_LIBRARIES_ROOT)
+        cmd = f"LANGUAGE={GIT_LANG} GIT_TERMINAL_PROMPT=0 git clone {url} {alias}"
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             shell=True)
+        out, err = p.communicate()
+        if p.returncode:
+            logger.error(f"Could not clone the external lib '{url}' into '{alias}'\n"
+                         f"stdout: {out.decode()}\nstderr: {err.decode()}")
+        return p.returncode
+    finally:
+        os.chdir(cwd)
+
+
+
+def pull(alias: str, url: str) -> int:
+    """Execute a 'git pull <url> master' in the repository of the given alias inside
+    EXTERNAL_LIBRARIES_ROOT returning the command's status code."""
+    cwd = os.getcwd()
+    try:
+        os.chdir(os.path.join(settings.EXTERNAL_LIBRARIES_ROOT, alias))
+        cmd = f"LANGUAGE={GIT_LANG} GIT_TERMINAL_PROMPT=0 git pull {url} master"
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             shell=True)
+        out, err = p.communicate()
+        if p.returncode:
+            logger.error(f"Could not pull the external lib '{url}' with alias '{alias}'\n"
+                         f"stdout: {out.decode()}\nstderr: {err.decode()}")
+        return p.returncode
+    finally:
+        os.chdir(cwd)

@@ -19,9 +19,8 @@ from django.http import (HttpResponse, HttpResponseBadRequest, HttpResponseNotAl
                          HttpResponseNotFound, JsonResponse)
 from django.views.generic import View
 
-from sandbox.utils import remove_outdated_env
 from . import utils
-from .container import Sandbox
+from .containers import Sandbox
 from .executor import Command, Executor
 
 
@@ -165,8 +164,6 @@ def execute(request):
         return HttpResponseNotAllowed(['POST'], f"405 Method Not Allowed : {request.method}")
     
     start = time.time()
-
-    threading.Thread(target=remove_outdated_env).start()
     
     config = request.POST.get("config")
     if config is None:

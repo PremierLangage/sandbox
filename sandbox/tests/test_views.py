@@ -1,3 +1,9 @@
+# test_views.py
+#
+# Authors:
+#   - Coumes Quentin <coumes.quentin@gmail.com>
+
+
 import json
 import os
 import tarfile
@@ -9,7 +15,7 @@ from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 from django_http_exceptions import HTTPExceptions
 
-from ..container import Sandbox
+from ..containers import Sandbox
 from ..enums import SandboxErrCode
 from ..tests.utils import EnvTestCase, SandboxTestCase
 from .utils import ENV1, ENV2

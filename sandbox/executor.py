@@ -2,6 +2,8 @@
 #
 # Authors:
 #   - Coumes Quentin <coumes.quentin@gmail.com>
+
+
 import logging
 import os
 import tarfile
@@ -16,7 +18,7 @@ from docker.models.containers import Container
 from timeout_decorator import timeout_decorator
 
 from sandbox import utils
-from .container import Sandbox
+from .containers import Sandbox
 from .enums import SandboxErrCode
 
 
@@ -178,7 +180,7 @@ class Executor:
                 break
         else:
             status = 0
-
+        
         result = None
         if self.result_path is not None:
             try:

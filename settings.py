@@ -15,9 +15,10 @@ import os
 import sys
 import threading
 
+from apscheduler.triggers.cron import CronTrigger
 from docker.types import Ulimit
 
-from sandbox.container import initialise_container
+from sandbox.containers import initialise_container
 
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -115,16 +116,18 @@ LOGGING = {
     },
     'loggers':                  {
         'sandbox':        {
-            'handlers': ['console', 'syslog', 'mail_admins', 'syslog_debug'],
-            'level':    'DEBUG',
+            'handlers':  ['console', 'syslog', 'mail_admins', 'syslog_debug'],
+            'level':     'DEBUG',
+            'propagate': True,
         },
         'django':         {
             'handlers': ['console', 'syslog', 'mail_admins', 'syslog_debug'],
             'level':    'INFO',
         },
         'django.request': {
-            'handlers': ['console', 'syslog', 'syslog_debug'],
-            'level':    'WARNING'
+            'handlers':  ['console', 'syslog', 'syslog_debug'],
+            'level':     'WARNING',
+            'propagate': False,
         }
     },
 }
@@ -141,17 +144,44 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 STATIC_URL = '/static/'
 
+# External libraries will be added to containers in /utils/libs/, this directory will be added
+# to both PATH and PYTHONPATH environment variables.
+# Each external lib must be a tuple (GIT_URL, ALIAS), where GIT_URL is the URL 'git clone'
+# will use, ALIAS the directory in which the library will be cloned.
+EXTERNAL_LIBRARIES = [
+    ("https://github.com/PremierLangage/premierlangage-lib.git", "pl"),
+]
+
+# Path where the libraries are downloaded
+EXTERNAL_LIBRARIES_ROOT = os.path.join(BASE_DIR, 'libs')
+if not os.path.isdir(EXTERNAL_LIBRARIES_ROOT):
+    os.makedirs(EXTERNAL_LIBRARIES_ROOT)
+
+# The CronTrigger triggering the update of the external libraries, see
+# https://apscheduler.readthedocs.io/en/latest/modules/triggers/cron.html for more information.
+EXTERNAL_LIBRARIES_CRON_TRIGGER = CronTrigger(
+    year="*",
+    month="*",
+    day="*",
+    week="*",
+    day_of_week="*",
+    hour="2",
+    minute="*",
+    second="*",
+)
+
+SANDBOX_VERSION = "2.1.0"
+
+# Time before returning a '503: Service Unavailable' when waiting for a container.
+WAIT_FOR_CONTAINER_DURATION = 2
+
+# Total time for an '/execute/' request before timeout
+EXECUTE_TIMEOUT = 10.0
+
 # Directory where environments are stored
 ENVIRONMENT_ROOT = os.path.join(BASE_DIR, 'environments')
 if not os.path.isdir(ENVIRONMENT_ROOT):
     os.makedirs(ENVIRONMENT_ROOT)
-
-# Sandbox parameters
-# WAIT_FOR_CONTAINER_DURATION: time before returning a '503: Service Unavailable' when waiting for
-#       a container.
-SANDBOX_VERSION = "2.0.0"
-WAIT_FOR_CONTAINER_DURATION = 2
-EXECUTE_TIMEOUT = 10.0
 
 # ENVIRONMENT_EXPIRATION: Time before the environment are deleted.
 HOUR = 3600
@@ -219,6 +249,8 @@ DOCKER_PARAMETERS = {
 # Check if any of the above settings are override by a config.py file.
 try:
     from config import *
+    
+    
     logger = logging.getLogger(__name__)
     logger.info("Using config.py...")
 except ModuleNotFoundError:
