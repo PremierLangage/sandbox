@@ -67,5 +67,7 @@ docker build -t pl:latest docker/ || {
     echo "try: systemctl restart docker$Color_Off" >&2
     exit 1
 }
+
 echo "$Green"
 echo "Installation successfull !$Color_Off"
+echo "You can try to run the server with$Purple python3 manage.py runserver [port]$Color_Off"
