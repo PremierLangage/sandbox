@@ -1,6 +1,7 @@
 import inspect
 import os
 import shutil
+import tarfile
 import uuid
 
 from django.test import Client, SimpleTestCase, override_settings
@@ -54,6 +55,7 @@ class EnvTestCase(SimpleTestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.client = Client()
+        cls.uuid4 = uuid.uuid4()
     
     
     @classmethod
@@ -65,6 +67,7 @@ class EnvTestCase(SimpleTestCase):
     
     def setUp(self):
         shutil.copytree(RESOURCES_ENV_ROOT, TEST_ENVIRONMENT_ROOT)
+        tarfile.open(os.path.join(TEST_ENVIRONMENT_ROOT, f"{self.uuid4}.tgz"), "x:gz").close()
         super().setUp()
     
     
