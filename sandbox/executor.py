@@ -130,18 +130,14 @@ class Executor:
     """This class provide methods to execute bash commands."""
     
     
-    def __init__(self, commands: List[Command], sandbox: Sandbox, env_uuid: str = None,
+    def __init__(self, commands: List[Command], sandbox: Sandbox, env_uuid: str,
                  result: str = None, save: bool = False):
         self.commands = commands
         self.sandbox = sandbox
         self.env_uuid = env_uuid
+        self.env_path = os.path.join(settings.ENVIRONMENT_ROOT, f"{env_uuid}.tgz")
         self.result_path = result
         self.save = save
-        
-        if env_uuid is not None:
-            self.env_path = os.path.join(settings.ENVIRONMENT_ROOT, f"{env_uuid}.tgz")
-        else:
-            self.env_path = None
     
     
     def _move_env_to_container(self):
@@ -167,8 +163,7 @@ class Executor:
         """Execute each commands in the container."""
         start = time.time()
         
-        if self.env_path is not None:
-            self._move_env_to_container()
+        self._move_env_to_container()
         
         execution = list()
         
@@ -196,13 +191,15 @@ class Executor:
             "total_time": time.time() - start,
         }
         
-        if self.env_uuid is not None and self.save:
+        if self.save:
             expire = datetime.now() + timedelta(seconds=settings.ENVIRONMENT_EXPIRATION)
             response["environment"] = self.env_uuid
             response["expire"] = expire.isoformat()
+            # Remove the one used by the container as it will cause an error in extract_env if the
+            # destination already exists.
             os.remove(self.env_path)
             threading.Thread(target=self.sandbox.extract_env, args=(self.env_uuid,)).start()
-        elif self.env_uuid is not None and not self.save:
+        else:
             os.remove(self.env_path)
         
         if result is not None:

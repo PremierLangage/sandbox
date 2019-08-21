@@ -7,6 +7,7 @@
 import os
 import tarfile
 import time
+import uuid
 
 from django.conf import settings
 from django.test import override_settings
@@ -139,7 +140,7 @@ class ExecutorTestCase(SandboxTestCase):
             Command("-false"),
         ]
         s = Sandbox.acquire()
-        e = Executor(commands, s)
+        e = Executor(commands, s, self.uuid4)
         
         result = e.execute()
         self.assertEqual(0, result["status"])
@@ -154,7 +155,7 @@ class ExecutorTestCase(SandboxTestCase):
             Command('echo "Hello World !" > result.txt')
         ]
         s = Sandbox.acquire()
-        e = Executor(commands, s, env_uuid=ENV1, result="result.txt", save=True)
+        e = Executor(commands, s, ENV1, result="result.txt", save=True)
         
         result = e.execute()
         self.assertEqual(0, result["status"])
@@ -190,7 +191,7 @@ class ExecutorTestCase(SandboxTestCase):
             Command('echo "Hello World !" > result.txt')
         ]
         s = Sandbox.acquire()
-        e = Executor(commands, s, env_uuid=ENV1, result="result.txt")
+        e = Executor(commands, s, ENV1, result="result.txt")
         
         result = e.execute()
         self.assertEqual(0, result["status"])
@@ -204,7 +205,7 @@ class ExecutorTestCase(SandboxTestCase):
     
     def test_execute_ok_environ(self):
         s = Sandbox.acquire()
-        e = Executor([Command('echo $VAR1', environ={"VAR1": "My var"})], s)
+        e = Executor([Command('echo $VAR1', environ={"VAR1": "My var"})], s, self.uuid4)
         
         result = e.execute()
         self.assertEqual(0, result["status"])
@@ -214,7 +215,7 @@ class ExecutorTestCase(SandboxTestCase):
     
     def test_execute_failing(self):
         s = Sandbox.acquire()
-        e = Executor([Command("false")], s)
+        e = Executor([Command("false")], s, self.uuid4)
         
         result = e.execute()
         self.assertEqual(1, result["status"])
@@ -225,7 +226,7 @@ class ExecutorTestCase(SandboxTestCase):
     
     def test_execute_result_not_found(self):
         s = Sandbox.acquire()
-        e = Executor([Command("true")], s, result="unknown.txt")
+        e = Executor([Command("true")], s, self.uuid4, result="unknown.txt")
         
         result = e.execute()
         self.assertEqual(SandboxErrCode.RESULT_NOT_FOUND, result["status"])
@@ -235,7 +236,7 @@ class ExecutorTestCase(SandboxTestCase):
     def test_execute_result_not_true(self):
         s = Sandbox.acquire()
         cmd = "dd if=/dev/urandom of=binary bs=1M count=10"
-        e = Executor([Command(cmd)], s, result="binary")
+        e = Executor([Command(cmd)], s, self.uuid4, result="binary")
         
         result = e.execute()
         self.assertEqual(SandboxErrCode.RESULT_NOT_UTF8, result["status"])
@@ -246,7 +247,7 @@ class ExecutorTestCase(SandboxTestCase):
     def test_execute_external_lib_in_path(self):
         s = Sandbox.acquire()
         cmd = 'echo $PATH > result.txt'
-        e = Executor([Command(cmd)], s, result="result.txt")
+        e = Executor([Command(cmd)], s, self.uuid4, result="result.txt")
         
         result = e.execute()
         self.assertEqual(0, result["status"])
@@ -258,7 +259,7 @@ class ExecutorTestCase(SandboxTestCase):
     def test_execute_external_lib_in_pythonpath(self):
         s = Sandbox.acquire()
         cmd = 'echo $PYTHONPATH > result.txt'
-        e = Executor([Command(cmd)], s, result="result.txt")
+        e = Executor([Command(cmd)], s, self.uuid4, result="result.txt")
         
         result = e.execute()
         self.assertEqual(0, result["status"])
@@ -272,7 +273,7 @@ class ExecutorTestCase(SandboxTestCase):
         s = Sandbox.acquire()
         
         cmd = 'python3 -c "from dummy_lib.dummy import dummy_func;dummy_func()" > result.txt'
-        e = Executor([Command(cmd)], s, result="result.txt")
+        e = Executor([Command(cmd)], s, self.uuid4, result="result.txt")
         
         result = e.execute()
         self.assertEqual(0, result["status"])

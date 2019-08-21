@@ -40,7 +40,10 @@ INSTALLED_APPS = [
     'sandbox',
 ]
 
-MIDDLEWARE = list()
+MIDDLEWARE = [
+    'django_http_exceptions.middleware.ExceptionHandlerMiddleware',
+    'django_http_exceptions.middleware.ThreadLocalRequestMiddleware',
+]
 
 ROOT_URLCONF = 'urls'
 

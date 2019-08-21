@@ -97,9 +97,8 @@ def extract(env: str, path: str) -> Optional[BinaryIO]:
 
 
 
-def executed_env(request: HttpRequest, config: dict) -> Optional[str]:
-    """Returns the UUID4 corresponding to the environment that will be used in the execution,
-    will return None if no environment is needed.
+def executed_env(request: HttpRequest, config: dict) -> str:
+    """Returns the UUID4 corresponding to the environment that will be used in the execution.
     
     If an environment is provided both in the body and the config, this function will do the merge
     through 'merge_tar_gz()'.
@@ -127,11 +126,14 @@ def executed_env(request: HttpRequest, config: dict) -> Optional[str]:
     if sandbox_env is not None:
         sandbox_env.close()
     
-    uuid_env = None
+    uuid_env = str(uuid.uuid4())
+    path = os.path.join(settings.ENVIRONMENT_ROOT, f"{uuid_env}.tgz")
     if env is not None:
-        uuid_env = str(uuid.uuid4())
-        with open(os.path.join(settings.ENVIRONMENT_ROOT, f"{uuid_env}.tgz"), "w+b") as f:
+        with open(path, "w+b") as f:
             f.write(env.read())
+    else:
+        tarfile.open(path, "x:gz").close()
+    
     
     return uuid_env
 
