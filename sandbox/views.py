@@ -186,7 +186,7 @@ def execute(request):
     sandbox = Sandbox.acquire()
     
     response = Executor(commands, sandbox, env, result_path, save).execute()
-    threading.Thread(target=sandbox.release)
+    threading.Thread(target=sandbox.release).start()
     
     logger.debug(f"Total execute request took : {time.time() - start} seconds")
     
