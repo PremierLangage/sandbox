@@ -137,12 +137,6 @@ class ExecutedEnvTestCase(SandboxTestCase):
         with self.assertRaises(HTTPExceptions.NOT_FOUND):
             utils.executed_env(request, {"environment": "unknown"})
     
-    
-    def test_executed_env_none(self):
-        request = self.factory.post(reverse("sandbox:execute"))
-        self.assertEqual(None, utils.executed_env(request, {}))
-    
-    
     def test_executed_env_only_sandbox(self):
         request = self.factory.post(reverse("sandbox:execute"))
         env_uuid = utils.executed_env(request, {"environment": ENV1})

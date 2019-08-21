@@ -88,23 +88,21 @@ class FileViewTestCase(EnvTestCase):
     
     
     def test_head_404_env(self):
-        with self.assertRaises(HTTPExceptions.NOT_FOUND):
-            self.client.head(reverse("sandbox:file", args=(uuid.uuid4(), "unknown")))
+        response = self.client.head(reverse("sandbox:file", args=(uuid.uuid4(), "unknown")))
+        self.assertEqual(404, response.status_code)
     
     
     def test_get_404_env(self):
-        with self.assertRaises(HTTPExceptions.NOT_FOUND):
-            self.client.get(reverse("sandbox:file", args=(uuid.uuid4(), "unknown")))
-    
+        response = self.client.get(reverse("sandbox:file", args=(uuid.uuid4(), "unknown")))
+        self.assertEqual(404, response.status_code)
     
     def test_head_404_file(self):
-        with self.assertRaises(HTTPExceptions.NOT_FOUND):
-            self.client.head(reverse("sandbox:file", args=(ENV1, "unknown")))
-    
+        response = self.client.head(reverse("sandbox:file", args=(ENV1, "unknown")))
+        self.assertEqual(404, response.status_code)
     
     def test_get_404_file(self):
-        with self.assertRaises(HTTPExceptions.NOT_FOUND):
-            self.client.get(reverse("sandbox:file", args=(ENV1, "unknown")))
+        response = self.client.get(reverse("sandbox:file", args=(ENV1, "unknown")))
+        self.assertEqual(404, response.status_code)
 
 
 

@@ -13,7 +13,7 @@ app_name = "sandbox"
 
 urlpatterns = [
     path(r'environments/<uuid:env>/', views.EnvView.as_view(), name="environment"),
-    path(r'files/<uuid:env>/<path:path>', views.FileView.as_view(), name="file"),
+    path(r'files/<uuid:env>/<path:path>/', views.FileView.as_view(), name="file"),
     path(r'specifications/', views.specifications, name="specs"),
     path(r'libraries/', views.libraries, name="libraries"),
     path(r'execute/', views.execute, name="execute"),
