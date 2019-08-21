@@ -133,7 +133,7 @@ def specifications(request):
             "name":   cpu_name,
         },
         "memory":          {
-            "limit":   settings.DOCKER_PARAMETERS["mem_limit"],
+            "ram":   settings.DOCKER_PARAMETERS["mem_limit"],
             "swap":    settings.DOCKER_PARAMETERS["memswap_limit"],
             "storage": storage,
         },
