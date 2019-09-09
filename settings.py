@@ -167,12 +167,12 @@ EXTERNAL_LIBRARIES_CRON_TRIGGER = CronTrigger(
     day="*",
     week="*",
     day_of_week="*",
-    hour="2",
-    minute="*",
-    second="*",
+    hour="*/2",
+    minute="0",
+    second="0",
 )
 
-SANDBOX_VERSION = "2.1.0"
+SANDBOX_VERSION = "2.0.1"
 
 # Time before returning a '503: Service Unavailable' when waiting for a container.
 WAIT_FOR_CONTAINER_DURATION = 2
