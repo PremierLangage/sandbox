@@ -53,6 +53,8 @@ RUN wget \
     -O- > /utils/junit-platform-console-standalone.jar
 RUN export JAVA_HOME=/usr/lib/jvm/jdk-11.0.2/
 
+RUN wget http://igm.univ-mlv.fr/~francis/BDs/bd_magasin -P /utils/ \
+    ; exit 0 # Ignore error
 
 # Installing PL-Java
 RUN wget https://github.com/forax/first-language/releases/download/1.0.2/pl-java-jdk-11.tar.gz -P /tmp
