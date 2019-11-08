@@ -10,7 +10,8 @@ import uuid
 
 from django.test import override_settings
 
-from .utils import EnvTestCase, LibTestCase, TEST_ENVIRONMENT_ROOT, TEST_EXTERNAL_LIBRARIES_ROOT
+from .utils import (EnvTestCase, LibTestCase, TEST_ENVIRONMENT_ROOT, TEST_EXTERNAL_LIBRARIES_ROOT,
+                    DUMMY_GIT_URL)
 from .. import tasks, utils
 
 
@@ -39,13 +40,13 @@ class RemoveOutdatedEnvTestCase(EnvTestCase):
 class RefreshExternalLibsTestCase(LibTestCase):
     
     @override_settings(EXTERNAL_LIBRARIES=[
-        ("https://github.com/qcoumes/dummy.git", "dummy1"),
-        ("https://github.com/qcoumes/dummy.git", "dummy2"),
+        (DUMMY_GIT_URL, "dummy1"),
+        (DUMMY_GIT_URL, "dummy2"),
     ])
     def test_refresh_external_libs(self):
         dummy1 = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy1")
         dummy2 = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy2")
-        utils.clone("dummy1", "https://github.com/qcoumes/dummy.git")
+        utils.clone("dummy1", DUMMY_GIT_URL)
         
         tasks.refresh_external_libs()
         self.assertTrue(os.path.isdir(os.path.join(dummy1, ".git")))

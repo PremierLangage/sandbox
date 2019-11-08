@@ -13,7 +13,7 @@ from django.urls import reverse
 from django_http_exceptions.exceptions import HTTPExceptions
 
 from .utils import (ENV1, ENV2, EnvTestCase, LibTestCase, SandboxTestCase, TEST_ENVIRONMENT_ROOT,
-                    TEST_EXTERNAL_LIBRARIES_ROOT)
+                    TEST_EXTERNAL_LIBRARIES_ROOT, DUMMY_GIT_URL)
 from .. import utils
 
 
@@ -273,7 +273,7 @@ class CloneTestCase(LibTestCase):
     def test_clone_ok(self):
         path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
         self.assertFalse(os.path.isdir(path))
-        self.assertEqual(0, utils.clone("dummy", "https://github.com/qcoumes/dummy.git"))
+        self.assertEqual(0, utils.clone("dummy", DUMMY_GIT_URL))
         self.assertTrue(os.path.isdir(path))
         self.assertTrue(os.path.isdir(os.path.join(path, ".git")))
     
@@ -282,7 +282,7 @@ class CloneTestCase(LibTestCase):
         path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
         os.mkdir(path)
         open(os.path.join(path, "file"), "w+").close()
-        self.assertNotEqual(0, utils.clone("dummy", "https://github.com/qcoumes/dummy.git"))
+        self.assertNotEqual(0, utils.clone("dummy", DUMMY_GIT_URL))
         self.assertFalse(os.path.isdir(os.path.join(path, ".git")))
 
 
@@ -290,11 +290,11 @@ class CloneTestCase(LibTestCase):
 class PullTestCase(LibTestCase):
     
     def test_pull_ok(self):
-        utils.clone("dummy", "https://github.com/qcoumes/dummy.git")
-        self.assertEqual(0, utils.pull("dummy", "https://github.com/qcoumes/dummy.git"))
+        utils.clone("dummy", DUMMY_GIT_URL)
+        self.assertEqual(0, utils.pull("dummy", DUMMY_GIT_URL))
     
     
     def test_pull_fail(self):
         path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
         os.mkdir(path)
-        self.assertNotEqual(0, utils.pull("dummy", "https://github.com/qcoumes/dummy.git"))
+        self.assertNotEqual(0, utils.pull("dummy", DUMMY_GIT_URL))
