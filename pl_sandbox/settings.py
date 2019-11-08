@@ -141,7 +141,7 @@ if not os.path.isdir(MEDIA_ROOT):
 # DEL_TEST_ENV_AFTER: number of secondes before a test environment should be deleted
 # WAIT_FOR_CONTAINER_DURATION: time before returning a '503: Service Unavailable' when waiting for
 #                              a container.
-SANDBOX_VERSION = "1.0.2"
+SANDBOX_VERSION = "1.0.8"
 DAY = 86400 #  86400 sec in a day
 DEL_ENV_AFTER = 7 * DAY
 DEL_TEST_ENV_AFTER = 1 * DAY
