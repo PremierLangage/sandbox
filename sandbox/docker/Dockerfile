@@ -37,6 +37,7 @@ RUN pip3 install wheel
 RUN pip3 install \
     jinja2 \
     jsonpickle \
+    scipy \
     sympy \
     matplotlib \
     automata-lib \
