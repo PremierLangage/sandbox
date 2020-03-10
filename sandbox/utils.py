@@ -15,14 +15,17 @@ def remove_outdated_env():
     
     for f in os.listdir(settings.MEDIA_ROOT):
         path = os.path.join(settings.MEDIA_ROOT, f)
-        creation_time = os.path.getctime(path)
-        
-        if f.startswith('_test'):
-            if (current_time - creation_time) >= settings.DEL_TEST_ENV_AFTER:
-                os.remove(path)
-        else:
-            if (current_time - creation_time) >= settings.DEL_ENV_AFTER:
-                os.remove(path)
+        try:
+            creation_time = os.path.getctime(path)
+            
+            if f.startswith('_test'):
+                if (current_time - creation_time) >= settings.DEL_TEST_ENV_AFTER:
+                    os.remove(path)
+            else:
+                if (current_time - creation_time) >= settings.DEL_ENV_AFTER:
+                    os.remove(path)
+        except FileNotFoundError:
+            pass
 
 
 
