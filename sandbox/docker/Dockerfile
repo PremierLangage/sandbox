@@ -36,13 +36,15 @@ RUN python3 /tmp/get-pip.py
 RUN pip3 install wheel
 RUN pip3 install \
     jinja2 \
-    jsonpickle \
+    jsonpickle < 1.4 \
     scipy \
     sympy \
     matplotlib \
     automata-lib \
     wimsapi \
-    graphviz
+    graphviz \
+    networkx \
+    mpld3
 
 
 # Installing Java 11
