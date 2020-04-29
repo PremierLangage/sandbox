@@ -45,7 +45,7 @@ RUN python3 /tmp/get-pip.py
 RUN pip3 install wheel
 RUN pip3 install \
     jinja2 \
-    jsonpickle < 1.4 \
+    "jsonpickle<1.4" \
     sympy \
     matplotlib \
     automata-lib \
