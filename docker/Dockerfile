@@ -49,6 +49,8 @@ RUN pip3 install \
     sympy \
     matplotlib \
     automata-lib \
+    fado \
+    tr-greenery \
     wimsapi \
     graphviz \
     mpld3 \
