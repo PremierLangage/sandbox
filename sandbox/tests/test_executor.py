@@ -7,7 +7,6 @@
 import os
 import tarfile
 import time
-import uuid
 
 from django.conf import settings
 from django.test import override_settings
@@ -18,7 +17,6 @@ from ..containers import Sandbox
 from ..enums import SandboxErrCode
 from ..executor import Command, Executor
 from ..tests.utils import SandboxTestCase
-
 
 
 class CommandTestCase(SandboxTestCase):
@@ -125,10 +123,9 @@ class CommandTestCase(SandboxTestCase):
         self.assertEqual("sleep 1", result["command"])
         self.assertEqual(SandboxErrCode.TIMEOUT, result["exit_code"])
         self.assertEqual("", result["stdout"])
-        self.assertEqual(f"Sandbox timed out after 0.2 seconds\n", result["stderr"])
+        self.assertEqual(f"Command timed out after 0.2 seconds\n", result["stderr"])
         self.assertIsInstance(result["time"], float)
         self.assertLessEqual(result["time"], 0.25)
-
 
 
 class ExecutorTestCase(SandboxTestCase):
@@ -143,6 +140,7 @@ class ExecutorTestCase(SandboxTestCase):
         e = Executor(commands, s, self.uuid4)
         
         result = e.execute()
+        s.release()
         self.assertEqual(0, result["status"])
         self.assertEqual(3, len(result["execution"]))
         
@@ -158,10 +156,11 @@ class ExecutorTestCase(SandboxTestCase):
         e = Executor(commands, s, ENV1, result="result.txt", save=True)
         
         result = e.execute()
+        s.release()
         self.assertEqual(0, result["status"])
         self.assertEqual(1, len(result["execution"]))
         self.assertEqual(e.env_uuid, result["environment"])
-        self.assertEqual("Hello World !", result["result"])
+        self.assertEqual("Hello World !\n", result["result"])
         
         real_total = sum(r["time"] for r in result["execution"])
         self.assertTrue(result["total_time"] - 0.5 <= real_total <= result["total_time"])
@@ -194,10 +193,11 @@ class ExecutorTestCase(SandboxTestCase):
         e = Executor(commands, s, ENV1, result="result.txt")
         
         result = e.execute()
+        s.release()
         self.assertEqual(0, result["status"])
         self.assertEqual(1, len(result["execution"]))
         self.assertNotIn("environment", result)
-        self.assertEqual("Hello World !", result["result"])
+        self.assertEqual("Hello World !\n", result["result"])
         
         real_total = sum(r["time"] for r in result["execution"])
         self.assertTrue(result["total_time"] - 0.5 <= real_total <= result["total_time"])
@@ -208,9 +208,38 @@ class ExecutorTestCase(SandboxTestCase):
         e = Executor([Command('echo $VAR1', environ={"VAR1": "My var"})], s, self.uuid4)
         
         result = e.execute()
+        s.release()
         self.assertEqual(0, result["status"])
         self.assertEqual(1, len(result["execution"]))
         self.assertEqual("My var", result["execution"][0]["stdout"])
+    
+    
+    def test_execute_timeout_command(self):
+        s = Sandbox.acquire()
+        e = Executor([Command('sleep 1', timeout=0.25)], s, self.uuid4)
+        
+        result = e.execute()
+        s.release()
+        self.assertEqual(SandboxErrCode.TIMEOUT, result["status"])
+        self.assertEqual(1, len(result["execution"]))
+    
+    
+    @override_settings(EXECUTE_TIMEOUT=1)
+    def test_execute_timeout_settings(self):
+        s = Sandbox.acquire()
+        e = Executor(
+            [
+                Command('sleep 0.1', timeout=0.4),
+                Command('sleep 0.1', timeout=0.4),
+                Command('sleep 0.1', timeout=0.4),
+                Command('sleep 0.1', timeout=0.4)
+            ], s, self.uuid4
+        )
+        
+        result = e.execute()
+        s.release()
+        self.assertEqual(SandboxErrCode.TIMEOUT, result["status"])
+        self.assertEqual(3, len(result["execution"]))
     
     
     def test_execute_failing(self):
@@ -229,6 +258,7 @@ class ExecutorTestCase(SandboxTestCase):
         e = Executor([Command("true")], s, self.uuid4, result="unknown.txt")
         
         result = e.execute()
+        s.release()
         self.assertEqual(SandboxErrCode.RESULT_NOT_FOUND, result["status"])
         self.assertEqual(1, len(result["execution"]))
     
@@ -239,6 +269,7 @@ class ExecutorTestCase(SandboxTestCase):
         e = Executor([Command(cmd)], s, self.uuid4, result="binary")
         
         result = e.execute()
+        s.release()
         self.assertEqual(SandboxErrCode.RESULT_NOT_UTF8, result["status"])
         self.assertEqual(1, len(result["execution"]))
     
@@ -250,6 +281,7 @@ class ExecutorTestCase(SandboxTestCase):
         e = Executor([Command(cmd)], s, self.uuid4, result="result.txt")
         
         result = e.execute()
+        s.release()
         self.assertEqual(0, result["status"])
         self.assertEqual(1, len(result["execution"]))
         self.assertIn("/utils/libs", result["result"])
@@ -262,6 +294,7 @@ class ExecutorTestCase(SandboxTestCase):
         e = Executor([Command(cmd)], s, self.uuid4, result="result.txt")
         
         result = e.execute()
+        s.release()
         self.assertEqual(0, result["status"])
         self.assertEqual(1, len(result["execution"]))
         self.assertIn("/utils/libs", result["result"])
@@ -276,6 +309,7 @@ class ExecutorTestCase(SandboxTestCase):
         e = Executor([Command(cmd)], s, self.uuid4, result="result.txt")
         
         result = e.execute()
+        s.release()
         self.assertEqual(0, result["status"])
         self.assertEqual(1, len(result["execution"]))
-        self.assertEqual("Im a dummy function !", result["result"])
+        self.assertEqual("Im a dummy function !\n", result["result"])

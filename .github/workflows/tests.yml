@@ -1,0 +1,47 @@
+name: Python package
+
+on:
+  push:
+    branches:
+      - master
+      - '*.*.*'
+  pull_request:
+    branches:
+      - master
+      - '*.*.*'
+  schedule:
+    - cron:  '0 6 * * 1'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8]
+
+    name: Python ${{ matrix.python-version }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Python
+        uses: actions/setup-python@master
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Tox
+        run: |
+          pip install tox
+
+      - name: Install the sandbox
+        run : |
+          ./bin/install.sh
+
+      - name: Run Tox
+        run: tox -e py
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == 3.8
+        uses: codecov/codecov-action@v1
+        with:
+          file: ./coverage.xml

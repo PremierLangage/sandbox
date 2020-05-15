@@ -88,14 +88,19 @@ done
 
 echo ""
 
-echo "Creating 'sandbox-auto.conf' in etc/apache2/sites-enabled/..."
+echo "Creating 'sandbox-auto.conf' in /etc/apache2/sites-enabled/..."
 echo -e "
 <VirtualHost *:80>
     ServerName $URL
     ServerAdmin $EMAIL
 
-    ErrorLog \${APACHE_LOG_DIR}/error.log
-    CustomLog \${APACHE_LOG_DIR}/access.log combined
+    ErrorLog \${APACHE_LOG_DIR}/sandbox-error.log
+    CustomLog \${APACHE_LOG_DIR}/sandbox-access.log combined
+
+     Alias /static /srv/sandbox/static/
+    <Directory /srv/sandbox/static/>
+        Require all granted
+    </Directory>
 
     <Directory $PWD/>
         <Files wsgi.py>
@@ -104,11 +109,13 @@ echo -e "
     </Directory>
 
     SetEnv PYTHONIOENCODING utf-8
-    WSGIDaemonProcess sandbox $PWD/
+    WSGIDaemonProcess sandbox  python-path=$PWD/
     WSGIProcessGroup  sandbox
     WSGIScriptAlias / $PWD/wsgi.py
 </VirtualHost>
 " > /etc/apache2/sites-enabled/sandbox-auto.conf
+
+echo "File created, you may want to take a look to ensure everything is correct."
 
 echo -n "$Green"
 echo "Deployment successfull$Color_Off"

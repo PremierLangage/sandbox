@@ -5,23 +5,24 @@
 
 
 import io
-import locale
 import logging
 import os
 import subprocess
 import tarfile
+import time
 import uuid
-from typing import BinaryIO, Optional
+from typing import BinaryIO, Optional, Tuple
 
+import humanfriendly
+import psutil
 from django.conf import settings
 from django.http import HttpRequest
 from django_http_exceptions import HTTPExceptions
 
+from sandbox.containers import Sandbox
+
 
 logger = logging.getLogger(__name__)
-
-GIT_LANG = '.'.join(locale.getdefaultlocale())
-
 
 
 def merge_tar_gz(a: Optional[BinaryIO], b: Optional[BinaryIO]) -> Optional[BinaryIO]:
@@ -69,12 +70,10 @@ def merge_tar_gz(a: Optional[BinaryIO], b: Optional[BinaryIO]) -> Optional[Binar
     return destio
 
 
-
 def get_env(env: str) -> Optional[str]:
     """Returns the path of the environment <env>, None if it does not exists."""
     path = os.path.join(settings.ENVIRONMENT_ROOT, f"{env}.tgz")
     return path if os.path.isfile(path) else None
-
 
 
 def extract(env: str, path: str) -> Optional[BinaryIO]:
@@ -94,7 +93,6 @@ def extract(env: str, path: str) -> Optional[BinaryIO]:
         )
     
     return file
-
 
 
 def executed_env(request: HttpRequest, config: dict) -> str:
@@ -134,9 +132,7 @@ def executed_env(request: HttpRequest, config: dict) -> str:
     else:
         tarfile.open(path, "x:gz").close()
     
-    
     return uuid_env
-
 
 
 def parse_environ(config: dict) -> dict:
@@ -150,7 +146,6 @@ def parse_environ(config: dict) -> dict:
     return {}
 
 
-
 def parse_result_path(config: dict) -> Optional[str]:
     """Check the validity of 'result' in the request and return it, returns None if it is not
     present."""
@@ -160,7 +155,6 @@ def parse_result_path(config: dict) -> Optional[str]:
                 f'result_path must be a string, not {type(config["result_path"])}')
         return config["result_path"]
     return None
-
 
 
 def parse_save(config: dict) -> bool:
@@ -174,39 +168,181 @@ def parse_save(config: dict) -> bool:
     return False
 
 
-
-def clone(alias: str, url: str) -> int:
-    """Execute a 'git clone <url> <alias>' inside EXTERNAL_LIBRARIES_ROOT, returning the command's
-    status code."""
-    cwd = os.getcwd()
-    try:
-        os.chdir(settings.EXTERNAL_LIBRARIES_ROOT)
-        cmd = f"LANGUAGE={GIT_LANG} GIT_TERMINAL_PROMPT=0 git clone {url} {alias}"
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             shell=True)
-        out, err = p.communicate()
-        if p.returncode:
-            logger.error(f"Could not clone the external lib '{url}' into '{alias}'\n"
-                         f"stdout: {out.decode()}\nstderr: {err.decode()}")
-        return p.returncode
-    finally:
-        os.chdir(cwd)
+def container_cpu_count() -> int:
+    """Return the number of cpu that a container can use."""
+    cpu_count = settings.DOCKER_PARAMETERS["cpuset_cpus"]
+    
+    if "-" in cpu_count:
+        lower, upper = cpu_count.split("-")
+        cpu_count = int(upper) - int(lower) + 1
+    else:
+        cpu_count = len(cpu_count.split(","))
+    
+    return cpu_count
 
 
+def container_ram_swap() -> Tuple[int, int]:
+    """Return ram and swap available to a container.
+    
+    See https://docs.docker.com/config/containers/resource_constraints/#--memory-swap-details
+    for mere details.
+    """
+    ram = settings.DOCKER_PARAMETERS.get("mem_limit", -1)
+    if ram == "-1":
+        ram = -1
+    if ram != -1:
+        ram = humanfriendly.parse_size(ram)
+    
+    swap = settings.DOCKER_PARAMETERS.get("memswap_limit", 0)
+    if swap == "-1":
+        swap = -1
+    if swap != -1:
+        swap = humanfriendly.parse_size(swap)
+    
+    if ram == -1 and swap == -1:
+        return -1, -1
+    if ram == swap:
+        return ram, 0
+    if ram >= 0 and swap == 0:
+        return ram, ram
+    
+    return ram, swap - ram
 
-def pull(alias: str, url: str) -> int:
-    """Execute a 'git pull <url> master' in the repository of the given alias inside
-    EXTERNAL_LIBRARIES_ROOT returning the command's status code."""
-    cwd = os.getcwd()
-    try:
-        os.chdir(os.path.join(settings.EXTERNAL_LIBRARIES_ROOT, alias))
-        cmd = f"LANGUAGE={GIT_LANG} GIT_TERMINAL_PROMPT=0 git pull {url} master"
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             shell=True)
-        out, err = p.communicate()
-        if p.returncode:
-            logger.error(f"Could not pull the external lib '{url}' with alias '{alias}'\n"
-                         f"stdout: {out.decode()}\nstderr: {err.decode()}")
-        return p.returncode
-    finally:
-        os.chdir(cwd)
+
+def container_storage_opt() -> int:
+    """Return the size for the 'storage_opt' options of the container.
+    
+    Return -1 if no option (or the default 'host') was given."""
+    if "storage_opt" in settings.DOCKER_PARAMETERS:
+        storage = settings.DOCKER_PARAMETERS["storage_opt"].get("size", -1)
+        if storage == "host" or storage == "-1":
+            storage = - 1
+    else:
+        storage = -1
+    return humanfriendly.parse_size(storage) if storage != -1 else -1
+
+
+def container_workind_dir_device() -> str:
+    """Get the device name where the working point of the sandbox is mounted."""
+    raw = subprocess.check_output(
+        ["df", settings.DOCKER_VOLUME_HOST_BASEDIR], universal_newlines=True
+    )
+    return raw.split("\n")[1].split()[0]
+
+
+def docker_version() -> str:
+    """Return the version of Docker used by the sandbox."""
+    docker_version = subprocess.check_output(["docker", "-v"], universal_newlines=True)
+    return docker_version.strip()[15:].split(",")[0]
+
+
+def specifications() -> dict:
+    """Return the dictionary corresponding to the /specifications/ API endpoints."""
+    _, freq_min, freq_max = psutil.cpu_freq()
+    ram, swap = container_ram_swap()
+    
+    return {
+        "host":      {
+            "cpu":             {
+                "core":     psutil.cpu_count(logical=False),
+                "logical":  psutil.cpu_count(),
+                "freq_min": freq_min,
+                "freq_max": freq_max,
+            },
+            "memory":          {
+                "ram":     psutil.virtual_memory()[0],
+                "swap":    psutil.swap_memory()[0],
+                "storage": {
+                    p[0]: psutil.disk_usage(p[1])[0] for p in psutil.disk_partitions()
+                }
+            },
+            "docker_version":  docker_version(),
+            "sandbox_version": settings.SANDBOX_VERSION,
+        },
+        "container": {
+            "count":              settings.DOCKER_COUNT,
+            "cpu":                {
+                "count":  container_cpu_count(),
+                "period": settings.DOCKER_PARAMETERS.get("cpu_period", -1),
+                "shares": settings.DOCKER_PARAMETERS.get("cpu_shares", -1),
+                "quota":  settings.DOCKER_PARAMETERS.get("cpu_quota", -1)
+            },
+            "memory":             {
+                "ram":     ram,
+                "swap":    swap,
+                "storage": container_storage_opt()
+            },
+            "io":                 {
+                "read_iops":  settings.DOCKER_PARAMETERS.get("device_read_iops", {}),
+                "read_bps":   settings.DOCKER_PARAMETERS.get("device_read_bps", {}),
+                "write_iops": settings.DOCKER_PARAMETERS.get("device_write_iops", {}),
+                "write_bps":  settings.DOCKER_PARAMETERS.get("device_write_bps", {})
+            },
+            "process":            settings.DOCKER_PARAMETERS.get("pids_limit", -1),
+            "working_dir_device": container_workind_dir_device()
+        }
+    }
+
+
+def usage_io_network() -> Tuple[dict, dict]:
+    """Return current partitions I/O and network usage.
+    
+    Returned value is a tuple containing :
+    
+    - A dictionary corresponding to the io with the following keys : read_iops, read_bps, write_iops
+    and write_bps. Each value are a dictionary mapping partitions to the corresponding statistics.
+    
+    - A dictionary corresponding to the io with the following keys : received_packets,
+    received_bytes, sent_packets, and sent_bytes."""
+    disks = {d[0].split('/')[-1]: d[0] for d in psutil.disk_partitions()}
+    raw_io1 = {disks[k]: v for k, v in psutil.disk_io_counters(True).items() if k in disks}
+    raw_network1 = psutil.net_io_counters()
+    time.sleep(1)
+    raw_io2 = {disks[k]: v for k, v in psutil.disk_io_counters(True).items() if k in disks}
+    raw_network2 = psutil.net_io_counters()
+    
+    network_usage = {
+        "sent_bytes":       raw_network2[0] - raw_network1[0],
+        "received_bytes":   raw_network2[1] - raw_network1[1],
+        "sent_packets":     raw_network2[2] - raw_network1[2],
+        "received_packets": raw_network2[3] - raw_network1[3],
+    }
+    io_usage = {
+        "read_iops":  dict(),
+        "read_bps":   dict(),
+        "write_iops": dict(),
+        "write_bps":  dict(),
+    }
+    
+    for p in raw_io1.keys():
+        io_usage["read_iops"][p] = raw_io2[p][0] - raw_io1[p][0],
+        io_usage["write_iops"][p] = raw_io2[p][1] - raw_io1[p][1],
+        io_usage["read_bps"][p] = raw_io2[p][2] - raw_io1[p][2],
+        io_usage["write_bps"][p] = raw_io2[p][3] - raw_io1[p][3],
+    
+    return io_usage, network_usage
+
+
+def usage():
+    """Return the dictionary corresponding to the /usage/ API endpoints."""
+    
+    io_usage, network_usage = usage_io_network()
+    
+    return {
+        "cpu":       {
+            "frequency": psutil.cpu_freq()[0],
+            "usage":     psutil.cpu_percent() / 100,
+            "usage_avg": [x / psutil.cpu_count() * 100 for x in psutil.getloadavg()]
+        },
+        "memory":    {
+            "ram":     psutil.virtual_memory()[3],
+            "swap":    psutil.swap_memory()[1],
+            "storage": {
+                p[0]: psutil.disk_usage(p[1])[1] for p in psutil.disk_partitions()
+            }
+        },
+        "io":        io_usage,
+        "network":   network_usage,
+        "process":   len(psutil.pids()),
+        "container": settings.DOCKER_COUNT - Sandbox.available(),
+    }

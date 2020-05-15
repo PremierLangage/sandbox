@@ -11,11 +11,10 @@ import time
 
 from django.conf import settings
 
-from sandbox.utils import clone, pull
+from sandbox.git import clone, pull
 
 
 logger = logging.getLogger(__name__)
-
 
 
 def refresh_external_libs():
@@ -28,7 +27,6 @@ def refresh_external_libs():
         else:
             clone(alias, url)
             logger.info(f"Library '{alias}' cloned from '{url}.")
-
 
 
 def remove_expired_env():

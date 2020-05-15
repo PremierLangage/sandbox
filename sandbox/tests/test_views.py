@@ -13,13 +13,11 @@ import uuid
 from django.conf import settings
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
-from django_http_exceptions import HTTPExceptions
 
+from .utils import ENV1, ENV2
 from ..containers import Sandbox
 from ..enums import SandboxErrCode
 from ..tests.utils import EnvTestCase, SandboxTestCase
-from .utils import ENV1, ENV2
-
 
 
 class EnvViewTestCase(EnvTestCase):
@@ -55,7 +53,6 @@ class EnvViewTestCase(EnvTestCase):
     def test_get_404(self):
         response = self.client.get(reverse("sandbox:environment", args=(uuid.uuid4(),)))
         self.assertEqual(response.status_code, 404)
-
 
 
 class FileViewTestCase(EnvTestCase):
@@ -96,38 +93,36 @@ class FileViewTestCase(EnvTestCase):
         response = self.client.get(reverse("sandbox:file", args=(uuid.uuid4(), "unknown")))
         self.assertEqual(404, response.status_code)
     
+    
     def test_head_404_file(self):
         response = self.client.head(reverse("sandbox:file", args=(ENV1, "unknown")))
         self.assertEqual(404, response.status_code)
+    
     
     def test_get_404_file(self):
         response = self.client.get(reverse("sandbox:file", args=(ENV1, "unknown")))
         self.assertEqual(404, response.status_code)
 
 
-
 class SpecificationsTestCase(SandboxTestCase):
     
-    @override_settings(DOCKER_PARAMETERS={
-        **settings.DOCKER_PARAMETERS, **{
-            "cpuset_cpus": "2,3,4",
-            "storage_opt": {},
-        }
-    })
+    @override_settings(
+        DOCKER_PARAMETERS={
+            **settings.DOCKER_PARAMETERS, **{
+                "cpuset_cpus": "2,3,4",
+                "storage_opt": {},
+            },
+        },
+        DOCKER_COUNT=2
+    )
     def test_specifications_ok(self):
-        # Set containers running to 2 and available to DOCKER_COUNT - 2
-        Sandbox.acquire()
-        Sandbox.acquire()
-        
         response = self.client.get(reverse("sandbox:specs"))
         self.assertEqual(response.status_code, 200)
         
         specs = json.loads(response.content.decode())
-        self.assertEqual(settings.DOCKER_COUNT, specs["containers"]["total"])
-        self.assertEqual(settings.DOCKER_COUNT - 2, specs["containers"]["available"])
-        self.assertEqual(2, specs["containers"]["running"])
-        self.assertEqual(3, specs["cpu"]["count"])
-        self.assertEqual("host", specs["memory"]["storage"])
+        self.assertEqual(2, specs["container"]["count"])
+        self.assertEqual(3, specs["container"]["cpu"]["count"])
+        self.assertEqual(-1, specs["container"]["memory"]["storage"])
     
     
     @override_settings(DOCKER_PARAMETERS={
@@ -137,26 +132,35 @@ class SpecificationsTestCase(SandboxTestCase):
         }
     })
     def test_specifications_ok_other_cpu_storage_opt(self):
-        # Set containers running to 2 and available to DOCKER_COUNT - 2
-        Sandbox.acquire()
-        Sandbox.acquire()
-        
         response = self.client.get(reverse("sandbox:specs"))
         self.assertEqual(response.status_code, 200)
         
         specs = json.loads(response.content.decode())
-        self.assertEqual(settings.DOCKER_COUNT, specs["containers"]["total"])
-        self.assertEqual(settings.DOCKER_COUNT - 2, specs["containers"]["available"])
-        self.assertEqual(2, specs["containers"]["running"])
-        self.assertEqual(3, specs["cpu"]["count"])
-        self.assertEqual("300m", specs["memory"]["storage"])
+        self.assertEqual(300000000, specs["container"]["memory"]["storage"])
     
     
     def test_specifications_405(self):
-        # Set containers running to 2 and available to DOCKER_COUNT - 2
         response = self.client.post(reverse("sandbox:specs"))
         self.assertEqual(response.status_code, 405)
 
+
+class UsageTestCase(SandboxTestCase):
+    
+    def test_usage_ok(self):
+        # Set containers running to 2
+        Sandbox.acquire()
+        Sandbox.acquire()
+        
+        response = self.client.get(reverse("sandbox:usage"))
+        self.assertEqual(response.status_code, 200)
+        
+        usage = json.loads(response.content.decode())
+        self.assertEqual(2, usage["container"])
+    
+    
+    def test_usage_405(self):
+        response = self.client.post(reverse("sandbox:usage"))
+        self.assertEqual(response.status_code, 405)
 
 
 class LibrariesTestCase(SimpleTestCase):
@@ -172,7 +176,6 @@ class LibrariesTestCase(SimpleTestCase):
         # Set containers running to 2 and available to DOCKER_COUNT - 2
         response = self.client.post(reverse("sandbox:libraries"))
         self.assertEqual(response.status_code, 405)
-
 
 
 class ExecuteTestCase(SandboxTestCase):
@@ -216,7 +219,7 @@ class ExecuteTestCase(SandboxTestCase):
         self.assertEqual(0, result["status"])
         self.assertEqual(1, len(result["execution"]))
         self.assertNotIn("environment", result)
-        self.assertEqual("Hello World !", result["result"])
+        self.assertEqual("Hello World !\n", result["result"])
         
         real_total = sum(r["time"] for r in result["execution"])
         self.assertTrue(result["total_time"] - 0.5 <= real_total <= result["total_time"])
@@ -240,7 +243,7 @@ class ExecuteTestCase(SandboxTestCase):
         self.assertEqual(0, result["status"])
         self.assertEqual(1, len(result["execution"]))
         self.assertIn("environment", result)
-        self.assertEqual("Hello World !", result["result"])
+        self.assertEqual("Hello World !\n", result["result"])
         
         real_total = sum(r["time"] for r in result["execution"])
         self.assertTrue(result["total_time"] - 0.5 <= real_total <= result["total_time"])
@@ -285,7 +288,7 @@ class ExecuteTestCase(SandboxTestCase):
         self.assertEqual(0, result["status"])
         self.assertEqual(1, len(result["execution"]))
         self.assertIn("environment", result)
-        self.assertEqual("Hello World !", result["result"])
+        self.assertEqual("Hello World !\n", result["result"])
         
         real_total = sum(r["time"] for r in result["execution"])
         self.assertTrue(result["total_time"] - 0.5 <= real_total <= result["total_time"])
@@ -335,7 +338,7 @@ class ExecuteTestCase(SandboxTestCase):
         result = json.loads(response.content.decode())
         self.assertEqual(0, result["status"])
         self.assertEqual(1, len(result["execution"]))
-        self.assertEqual("Hello World !", result["result"])
+        self.assertEqual("Hello World !\n", result["result"])
         
         real_total = sum(r["time"] for r in result["execution"])
         self.assertTrue(result["total_time"] - 0.5 <= real_total <= result["total_time"])
@@ -399,7 +402,7 @@ class ExecuteTestCase(SandboxTestCase):
         self.assertEqual("sleep 1", result["execution"][1]["command"])
         self.assertEqual(SandboxErrCode.TIMEOUT, result["execution"][1]["exit_code"])
         self.assertEqual("", result["execution"][1]["stdout"])
-        self.assertEqual(f"Sandbox timed out after 0.2 seconds\n", result["execution"][1]["stderr"])
+        self.assertEqual(f"Command timed out after 0.2 seconds\n", result["execution"][1]["stderr"])
         self.assertIsInstance(result["execution"][1]["time"], float)
         self.assertLessEqual(result["execution"][1]["time"], 0.25)
     
