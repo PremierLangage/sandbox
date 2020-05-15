@@ -8,14 +8,13 @@ import io
 import os
 import tarfile
 
-from django.test import RequestFactory, SimpleTestCase
+from django.conf import settings
+from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.urls import reverse
 from django_http_exceptions.exceptions import HTTPExceptions
 
-from .utils import (ENV1, ENV2, EnvTestCase, LibTestCase, SandboxTestCase, TEST_ENVIRONMENT_ROOT,
-                    TEST_EXTERNAL_LIBRARIES_ROOT, DUMMY_GIT_URL)
+from .utils import ENV1, ENV2, EnvTestCase, SandboxTestCase, TEST_ENVIRONMENT_ROOT
 from .. import utils
-
 
 
 class MergeTarGZTestCase(EnvTestCase):
@@ -93,7 +92,6 @@ class MergeTarGZTestCase(EnvTestCase):
         tar.close()
 
 
-
 class GetEnvTestCase(SandboxTestCase):
     
     def test_get_env_ok(self):
@@ -105,7 +103,6 @@ class GetEnvTestCase(SandboxTestCase):
     
     def test_get_env_not_found(self):
         self.assertEqual(None, utils.get_env("unknown"))
-
 
 
 class ExtractTestCase(SandboxTestCase):
@@ -124,7 +121,6 @@ class ExtractTestCase(SandboxTestCase):
             utils.extract(ENV1, "unkown")
 
 
-
 class ExecutedEnvTestCase(SandboxTestCase):
     
     def setUp(self):
@@ -136,6 +132,7 @@ class ExecutedEnvTestCase(SandboxTestCase):
         request = self.factory.post(reverse("sandbox:execute"))
         with self.assertRaises(HTTPExceptions.NOT_FOUND):
             utils.executed_env(request, {"environment": "unknown"})
+    
     
     def test_executed_env_only_sandbox(self):
         request = self.factory.post(reverse("sandbox:execute"))
@@ -191,7 +188,6 @@ class ExecutedEnvTestCase(SandboxTestCase):
             self.assertEqual(b"both1\n", tar.extractfile("file3.txt").read())
 
 
-
 class ParseenvironTestCase(SimpleTestCase):
     
     def test_parse_environ_ok(self):
@@ -219,7 +215,6 @@ class ParseenvironTestCase(SimpleTestCase):
             utils.parse_environ(config)
 
 
-
 class ParseResultPathTestCase(SimpleTestCase):
     
     def test_parse_result_path_ok(self):
@@ -241,7 +236,6 @@ class ParseResultPathTestCase(SimpleTestCase):
         
         with self.assertRaises(HTTPExceptions.BAD_REQUEST):
             utils.parse_result_path(config)
-
 
 
 class ParseSavePathTestCase(SimpleTestCase):
@@ -267,34 +261,103 @@ class ParseSavePathTestCase(SimpleTestCase):
             utils.parse_save(config)
 
 
-
-class CloneTestCase(LibTestCase):
+class ContainerCpuTestCase(SimpleTestCase):
     
-    def test_clone_ok(self):
-        path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
-        self.assertFalse(os.path.isdir(path))
-        self.assertEqual(0, utils.clone("dummy", DUMMY_GIT_URL))
-        self.assertTrue(os.path.isdir(path))
-        self.assertTrue(os.path.isdir(os.path.join(path, ".git")))
+    @override_settings(DOCKER_PARAMETERS={
+        **settings.DOCKER_PARAMETERS, **{"cpuset_cpus": "2-4"},
+    })
+    def container_cpu_count_hyphen(self):
+        self.assertEqual(3, utils.container_cpu_count())
     
     
-    def test_clone_fail(self):
-        path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
-        os.mkdir(path)
-        open(os.path.join(path, "file"), "w+").close()
-        self.assertNotEqual(0, utils.clone("dummy", DUMMY_GIT_URL))
-        self.assertFalse(os.path.isdir(os.path.join(path, ".git")))
+    @override_settings(DOCKER_PARAMETERS={
+        **settings.DOCKER_PARAMETERS, **{"cpuset_cpus": "1,4,7,10"},
+    })
+    def container_cpu_count_hyphen(self):
+        self.assertEqual(4, utils.container_cpu_count())
 
 
+class ContainerRamSwapTestCase(SimpleTestCase):
+    
+    @override_settings(DOCKER_PARAMETERS={
+        **settings.DOCKER_PARAMETERS, **{
+            "mem_limit":     "-1",
+            "memswap_limit": "-1"
+        },
+    })
+    def test_container_ram_m1s_swap_m1s(self):
+        self.assertEqual((-1, -1), utils.container_ram_swap())
+    
+    
+    @override_settings(DOCKER_PARAMETERS={
+        **settings.DOCKER_PARAMETERS, **{
+            "mem_limit":     -1,
+            "memswap_limit": -1
+        },
+    })
+    def test_container_ram_m1_swap_m1(self):
+        self.assertEqual((-1, -1), utils.container_ram_swap())
+    
+    
+    @override_settings(DOCKER_PARAMETERS={
+        **settings.DOCKER_PARAMETERS, **{
+            "mem_limit":     "100m",
+            "memswap_limit": "0"
+        },
+    })
+    def test_container_ram_100m_swap_0(self):
+        self.assertEqual((100000000, 100000000), utils.container_ram_swap())
+    
+    
+    @override_settings(DOCKER_PARAMETERS={
+        **settings.DOCKER_PARAMETERS, **{
+            "mem_limit":     "100m",
+            "memswap_limit": "100m"
+        },
+    })
+    def test_container_ram_100m_swap_100m(self):
+        self.assertEqual((100000000, 0), utils.container_ram_swap())
+    
+    
+    @override_settings(DOCKER_PARAMETERS={
+        **settings.DOCKER_PARAMETERS, **{
+            "mem_limit":     "100m",
+            "memswap_limit": "150m"
+        },
+    })
+    def test_container_ram_100m_swap_150m(self):
+        self.assertEqual((100000000, 50000000), utils.container_ram_swap())
 
-class PullTestCase(LibTestCase):
+
+class ContainerStorageOptTestCase(SimpleTestCase):
     
-    def test_pull_ok(self):
-        utils.clone("dummy", DUMMY_GIT_URL)
-        self.assertEqual(0, utils.pull("dummy", DUMMY_GIT_URL))
+    @override_settings(DOCKER_PARAMETERS={
+        **settings.DOCKER_PARAMETERS, **{"storage_opt": {"size": "300m"}},
+    })
+    def test_container_storage_opt_300m(self):
+        self.assertEqual(300000000, utils.container_storage_opt())
     
     
-    def test_pull_fail(self):
-        path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
-        os.mkdir(path)
-        self.assertNotEqual(0, utils.pull("dummy", DUMMY_GIT_URL))
+    @override_settings(DOCKER_PARAMETERS={
+        **settings.DOCKER_PARAMETERS, **{"storage_opt": {"size": -1}},
+    })
+    def test_container_storage_opt_m1(self):
+        self.assertEqual(-1, utils.container_storage_opt())
+    
+    
+    @override_settings(DOCKER_PARAMETERS={
+        **settings.DOCKER_PARAMETERS, **{"storage_opt": {"size": "-1"}},
+    })
+    def test_container_storage_opt_m1s(self):
+        self.assertEqual(-1, utils.container_storage_opt())
+    
+    
+    @override_settings(DOCKER_PARAMETERS={
+        **settings.DOCKER_PARAMETERS, **{"storage_opt": {"size": "host"}},
+    })
+    def test_container_storage_opt_host(self):
+        self.assertEqual(-1, utils.container_storage_opt())
+    
+    @override_settings(DOCKER_PARAMETERS={})
+    def test_container_storage_opt_host(self):
+        self.assertEqual(-1, utils.container_storage_opt())

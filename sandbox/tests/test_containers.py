@@ -17,12 +17,11 @@ from .utils import SandboxTestCase, raises_docker_exception
 from ..containers import Sandbox
 
 
-
 class SandboxWrapperTestCase(SandboxTestCase):
     
     def test_0_initialise_container(self):
         # 'initialise_container' is ran by settings.py
-        self.assertEquals(settings.DOCKER_COUNT, Sandbox.count())
+        self.assertEquals(settings.DOCKER_COUNT, Sandbox.available())
     
     
     def test_acquire(self):
@@ -39,7 +38,7 @@ class SandboxWrapperTestCase(SandboxTestCase):
         self.assertLessEqual(0.5, time.time() - start)
     
     
-    @override_settings(WAIT_FOR_CONTAINER_DURATION=0.5)
+    @override_settings(WAIT_FOR_CONTAINER_DURATION=0.1)
     def test_acquire_unavailable(self):
         for _ in range(settings.DOCKER_COUNT):
             Sandbox.acquire()

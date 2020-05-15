@@ -7,7 +7,6 @@
 import logging
 import os
 import tarfile
-import threading
 import time
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
@@ -23,7 +22,6 @@ from .enums import SandboxErrCode
 
 
 logger = logging.getLogger(__name__)
-
 
 
 class Command:
@@ -71,7 +69,8 @@ class Command:
         
         if not isinstance(config["commands"], list):
             raise HTTPExceptions.BAD_REQUEST.with_content(
-                f'commands must be a list, not {type(config["commands"])}')
+                f'commands must be a list, not {type(config["commands"])}'
+            )
         
         environ = utils.parse_environ(config)
         
@@ -90,7 +89,6 @@ class Command:
     def execute(self, container: Container) -> Tuple[bool, dict]:
         """Execute the command on the given container."""
         start = time.time()
-        
         try:
             timeout = timeout_decorator.timeout(self.timeout, use_signals=False)
             exec_run = timeout(container.exec_run)
@@ -98,12 +96,12 @@ class Command:
                 ["bash", "-c", self.command], environment=self.environ, demux=True)
             stdout, stderr = ("" if out is None else out.decode().strip() for out in output)
         except timeout_decorator.TimeoutError:
-            exit_code = SandboxErrCode.TIMEOUT
+            exit_code = SandboxErrCode.TIMEOUT.value
             stdout = ""
-            stderr = f"Sandbox timed out after {self.timeout} seconds\n"
+            stderr = f"Command timed out after {self.timeout} seconds\n"
         except Exception:  # pragma: no cover
             logger.exception(f"An error occurred while executing the command '{self.command}'")
-            exit_code = SandboxErrCode.UNKNOWN
+            exit_code = SandboxErrCode.UNKNOWN.value
             stdout = ""
             stderr = "An unknown error occurred on the sandbox\n"
         
@@ -115,7 +113,7 @@ class Command:
             "time":      time.time() - start,
         }
         
-        if exit_code < 0:
+        if exit_code < 0 and exit_code != SandboxErrCode.TIMEOUT.value:  # pragma: no cover
             status = False
         elif self.ignore_failure:
             status = True
@@ -123,7 +121,6 @@ class Command:
             status = (exit_code == 0)
         
         return status, result
-
 
 
 class Executor:
@@ -156,7 +153,7 @@ class Executor:
         with open(os.path.join(self.sandbox.envpath, self.result_path), encoding="UTF-8") as f:
             content = f.read()
         logger.debug(f"Getting result from container took : {time.time() - start} seconds")
-        return content.strip()
+        return content
     
     
     def execute(self) -> dict:
@@ -166,13 +163,15 @@ class Executor:
         self._move_env_to_container()
         
         execution = list()
-        
+        timeout = settings.EXECUTE_TIMEOUT
         for command in self.commands:
+            command.timeout = min(command.timeout, timeout)
             status, exec_result = command.execute(self.sandbox.container)
             execution.append(exec_result)
             if not status:
                 status = exec_result["exit_code"]
                 break
+            timeout -= max(exec_result["time"], 0)
         else:
             status = 0
         
@@ -181,9 +180,9 @@ class Executor:
             try:
                 result = self._get_result()
             except FileNotFoundError:
-                status = SandboxErrCode.RESULT_NOT_FOUND
+                status = SandboxErrCode.RESULT_NOT_FOUND.value
             except UnicodeDecodeError:
-                status = SandboxErrCode.RESULT_NOT_UTF8
+                status = SandboxErrCode.RESULT_NOT_UTF8.value
         
         response = {
             "status":     status,
@@ -198,7 +197,7 @@ class Executor:
             # Remove the one used by the container as it will cause an error in extract_env if the
             # destination already exists.
             os.remove(self.env_path)
-            threading.Thread(target=self.sandbox.extract_env, args=(self.env_uuid,)).start()
+            self.sandbox.extract_env(self.env_uuid)
         else:
             os.remove(self.env_path)
         

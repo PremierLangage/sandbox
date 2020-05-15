@@ -11,7 +11,6 @@ from django.conf import settings
 from sandbox.tasks import refresh_external_libs, remove_expired_env
 
 
-
 class SandboxConfig(AppConfig):
     name = 'sandbox'
     
@@ -26,8 +25,8 @@ class SandboxConfig(AppConfig):
         refresh_external_libs()
         
         scheduler = BackgroundScheduler(job_defaults={
-            'coalesce':      True,
-            'max_instances': 1,
+            'coalesce':           True,
+            'max_instances':      1,
             'misfire_grace_time': 60 * 5,
         })
         scheduler.add_job(refresh_external_libs, trigger=settings.EXTERNAL_LIBRARIES_CRON_TRIGGER)

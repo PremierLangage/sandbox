@@ -7,7 +7,7 @@ import uuid
 from django.test import Client, SimpleTestCase, override_settings
 from docker.errors import DockerException
 
-from .. import containers
+from ..containers import initialise_containers, purging_containers
 
 
 RESOURCES_ROOT = os.path.join(os.path.dirname(__file__), "resources")
@@ -25,7 +25,6 @@ DUMMY_GIT_URL = "https://github.com/github/practice"
 
 def raises_docker_exception():
     raise DockerException
-
 
 
 class EnvTestCase(SimpleTestCase):
@@ -77,7 +76,6 @@ class EnvTestCase(SimpleTestCase):
         super().tearDown()
 
 
-
 class LibTestCase(SimpleTestCase):
     """Base class for tests using EXTERNAL_LIBRARIES_ROOT.
 
@@ -127,12 +125,15 @@ class LibTestCase(SimpleTestCase):
         super().tearDown()
 
 
-
 class SandboxTestCase(LibTestCase, EnvTestCase):
     """Base test class using containers"""
     
     
+    def setUp(self):
+        initialise_containers()
+        super().setUp()
+    
+    
     def tearDown(self):
-        for c in containers.CONTAINERS:
-            c.release()
+        purging_containers()
         super().tearDown()

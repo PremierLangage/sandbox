@@ -7,17 +7,6 @@ import sys
 
 devnull = open(os.devnull, "w")
 
-python2 = subprocess.check_output(["/usr/bin/python2", "--version"],
-                                  stderr=subprocess.STDOUT).decode().split()[1].strip()
-python3 = ".".join(map(str, sys.version_info[:3]))
-java = " ".join(
-    subprocess.check_output(["/usr/bin/java", "--version"]).decode().split("\n")[0].split()[:2])
-gcc = subprocess.check_output(["/usr/bin/gcc", "--version"]).decode().split("\n")[0].split()[3]
-gpp = subprocess.check_output(["/usr/bin/g++", "--version"]).decode().split("\n")[0].split()[3]
-perl = subprocess.check_output(["/usr/bin/perl", "--version"]).decode().split("\n")[1].split()[8][
-       2:-1]
-postgres = subprocess.check_output(["/usr/bin/psql", "--version"]).decode().split()[2]
-
 system_packages = dict()
 command = "dpkg --get-selections | awk '{print $1}' | xargs dpkg-query --show $1"
 commands = ["/bin/bash", "-c", command]
@@ -60,13 +49,6 @@ for path in os.environ["PATH"].split(":"):
             bins.append(name)
 
 print(json.dumps({
-    "python3":   python3,
-    "python2":   python2,
-    "java":      java,
-    "gcc":       gcc,
-    "g++":       gpp,
-    "perl":      perl,
-    "postgres":  postgres,
     "libraries": {
         "system": dict(sorted(system_packages.items())),
         "python": dict(sorted(python_modules.items())),

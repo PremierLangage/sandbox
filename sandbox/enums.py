@@ -7,7 +7,6 @@
 from enum import IntEnum, unique
 
 
-
 @unique
 class SandboxErrCode(IntEnum):
     UNKNOWN = -1

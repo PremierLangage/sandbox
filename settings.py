@@ -18,8 +18,6 @@ import threading
 from apscheduler.triggers.cron import CronTrigger
 from docker.types import Ulimit
 
-from sandbox.containers import initialise_container
-
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -172,7 +170,7 @@ EXTERNAL_LIBRARIES_CRON_TRIGGER = CronTrigger(
     second="0",
 )
 
-SANDBOX_VERSION = "2.0.3"
+SANDBOX_VERSION = "3.0.0"
 
 # Time before returning a '503: Service Unavailable' when waiting for a container.
 WAIT_FOR_CONTAINER_DURATION = 2
@@ -197,35 +195,11 @@ ENVIRONMENT_EXPIRATION = DAY
 #       with the containers. For each container, a directory named after the container's name is
 #       created inside DOCKER_VOLUME_HOST_BASEDIR.
 #
-# image (str) – The image to run.
-# auto_remove (bool) – enable auto-removal of the container on daemon side when the container’s
-#       process exits.
-# cpu_period (int) – The length of a CPU period in microseconds.
-# cpu_quota (int) – Microseconds of CPU time that the container can get in a CPU period.
-# cpu_shares (int) – CPU shares (relative weight).
-# cpuset_cpus (str) – CPUs in which to allow execution ("0-3", "0,1").
-# detach (bool) Run container in the background and return a Container object.
-# environment (dict) – Environment variables to set inside the container, as a dictionary.
-# mem_limit (str) – Memory limit. String with a units char (13b, 12k, 14m, 1g) min is 4m.
-# memswap_limit (int) – Maximum amount of memory + swap a container is allowed to consume. See
-#       https://docs.docker.com/engine/admin/resource_constraints/
-# network_disabled (bool) – Disable networking.
-# network_mode (str) – One of:
-#       - "bridge" – Create a new network stack for the container on on the bridge network.
-#       - "none" – No networking for this container.
-#       - "container:<name|id>" – Reuse another container’s network stack.
-#       - "host" – Use the host network stack.
-# storage_opt (dict) – Storage driver options per container as a key-value mapping. Use this
-#       argument only if you have an XFS file system you can for instance limit storage with
-#       '{"size": "200m"}'.
-# tty (bool) – Allocate a pseudo-TTY.
-# ulimits (list) – Ulimits to set inside the container, as a list of 'container.types.Ulimit'
-#       instances.
-# user (str or int) – Username or UID to run commands as inside the container.
-#
-# See https://docs.docker.com/config/containers/resource_constraints/ for more information about
+# DOCKER_PARAMETERS (dict) - kwargs given to the Containers constructor. See
+# https://docker-py.readthedocs.io/en/stable/containers.html and
+# https://docs.docker.com/config/containers/resource_constraints/ for more information about
 # every argument
-DOCKER_COUNT = 5
+DOCKER_COUNT = 20
 DOCKER_VOLUME_HOST_BASEDIR = os.path.join(BASE_DIR, 'containers_env')
 DOCKER_PARAMETERS = {
     "image":            "pl:latest",
@@ -260,7 +234,12 @@ except ModuleNotFoundError:
 
 # Override some settings from testing purpose
 if TESTING:
-    DOCKER_COUNT = 3
+    DOCKER_COUNT = 10
+    LOGGING = {}
+    logging.disable(logging.CRITICAL)
 
-INITIALISING_THREAD = threading.Thread(target=initialise_container)
+from sandbox.containers import initialise_containers
+
+
+INITIALISING_THREAD = threading.Thread(target=initialise_containers)
 INITIALISING_THREAD.start()

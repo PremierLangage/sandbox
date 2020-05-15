@@ -1,0 +1,57 @@
+[
+  {
+    "config": {
+      "commands": [
+        "echo \"Hello World !\" > result.txt"
+      ],
+      "result_path": "result.txt"
+    },
+    "expected": "Hello World !\n"
+  },
+  {
+    "config": {
+      "commands": [
+        "cat Germinal.txt | wc -c > result.txt"
+      ],
+      "result_path": "result.txt"
+    },
+    "environment": "8b2edc91-7627-4f62-a276-88ae1346afc0.tgz",
+    "expected": "1030016\n"
+  },
+  {
+    "config": {
+      "commands": [
+        "gcc fibonacci.c",
+        "./a.out 35 > result.txt"
+      ],
+      "result_path": "result.txt"
+    },
+    "environment": "607cea7f-2614-4bee-93a2-aba858193c14.tgz",
+    "expected": "14930352\n"
+  },
+  {
+    "config": {
+      "commands": [
+        "python3 mult_table.py > result.txt"
+      ],
+      "result_path": "result.txt"
+    },
+    "environment": "24df3aec-cb1d-4a6e-b3f7-9f6cd2d512c6.tgz",
+    "expected": "*  |  1   2   3   4   5   6   7   8   9  \n-----------------------------------------\n1  |  1   2   3   4   5   6   7   8   9  \n2  |  2   4   6   8   10  12  14  16  18 \n3  |  3   6   9   12  15  18  21  24  27 \n4  |  4   8   12  16  20  24  28  32  36 \n5  |  5   10  15  20  25  30  35  40  45 \n6  |  6   12  18  24  30  36  42  48  54 \n7  |  7   14  21  28  35  42  49  56  63 \n8  |  8   16  24  32  40  48  56  64  72 \n\n"
+  },
+  {
+    "id": 4,
+    "config": {
+      "commands": [
+        {
+          "command": "-sleep 4",
+          "timeout": 0.7
+        },
+        "echo \"OK\" > result.txt"
+      ],
+      "result_path": "result.txt"
+    },
+    "environment": "24df3aec-cb1d-4a6e-b3f7-9f6cd2d512c6.tgz",
+    "expected": "OK\n"
+  }
+]
