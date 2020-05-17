@@ -55,7 +55,7 @@ class StressTestCase(SandboxTestCase):
             result = json.loads(response.content.decode())
             self.assertEqual(matrix[i]["expected"], result["result"])
         
-        time.sleep(1)
+        time.sleep(2)
         self.assertEqual(settings.DOCKER_COUNT, Sandbox.available())
     
     
@@ -67,7 +67,7 @@ class StressTestCase(SandboxTestCase):
         queue = Queue()
         threads = list()
         for i in range(200):
-            time.sleep(random.uniform(0, 1))
+            time.sleep(random.uniform(0.5, 2))
             index = random.randint(0, n)
             t = threading.Thread(
                 target=execute,
