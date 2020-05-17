@@ -115,14 +115,17 @@ class Sandbox:
         try:
             cw = CONTAINERS.get(timeout=settings.WAIT_FOR_CONTAINER_DURATION)
         except queue.Empty:
+            logger.warning(f"Failed to acquire a container after {time.time() - start} seconds)")
             raise HTTPExceptions.SERVICE_UNAVAILABLE.with_content(
                 "Sandbox overloaded, retry after a few seconds."
             )
         
         cw.available = False
         cw.used_since = time.time()
-        logger.info(f"Acquired container '{cw.name}' of id '{cw.index}'")
-        logger.debug(f"Acquiring a container took {time.time() - start} seconds")
+        logger.info(
+            f"Acquired container '{cw.name}' of id '{cw.index}'"
+            f"(took {time.time() - start} seconds)"
+        )
         
         return cw
     

@@ -235,8 +235,6 @@ except ModuleNotFoundError:
 # Override some settings from testing purpose
 if TESTING:
     DOCKER_COUNT = 10
-    LOGGING = {}
-    logging.disable(logging.CRITICAL)
 
 from sandbox.containers import initialise_containers
 
