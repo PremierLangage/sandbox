@@ -313,12 +313,11 @@ def usage_io_network() -> Tuple[dict, dict]:
         "write_iops": dict(),
         "write_bps":  dict(),
     }
-    
     for p in raw_io1.keys():
-        io_usage["read_iops"][p] = raw_io2[p][0] - raw_io1[p][0],
-        io_usage["write_iops"][p] = raw_io2[p][1] - raw_io1[p][1],
-        io_usage["read_bps"][p] = raw_io2[p][2] - raw_io1[p][2],
-        io_usage["write_bps"][p] = raw_io2[p][3] - raw_io1[p][3],
+        io_usage["read_iops"][p] = raw_io2[p][0] - raw_io1[p][0]
+        io_usage["write_iops"][p] = raw_io2[p][1] - raw_io1[p][1]
+        io_usage["read_bps"][p] = raw_io2[p][2] - raw_io1[p][2]
+        io_usage["write_bps"][p] = raw_io2[p][3] - raw_io1[p][3]
     
     return io_usage, network_usage
 
