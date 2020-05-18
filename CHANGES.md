@@ -9,3 +9,4 @@
 thread-safe way.
 * Stress tests added
 * Tests now done through Github Action.
+* Fixed #48
