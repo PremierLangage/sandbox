@@ -73,6 +73,8 @@ class Command:
             )
         
         environ = utils.parse_environ(config)
+        if not config["commands"]:
+            raise HTTPExceptions.BAD_REQUEST.with_content(f"Command list cannot be empty")
         
         commands = list()
         for c in config["commands"]:

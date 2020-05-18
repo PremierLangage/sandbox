@@ -81,6 +81,10 @@ class CommandTestCase(SandboxTestCase):
         with self.assertRaises(HTTPExceptions.BAD_REQUEST):
             Command.from_config({"commands": [object()]})
     
+    def test_from_request_empty_command(self):
+        with self.assertRaises(HTTPExceptions.BAD_REQUEST):
+            Command.from_config({"commands": []})
+    
     
     def test_execute_ok(self):
         s = Sandbox.acquire()
