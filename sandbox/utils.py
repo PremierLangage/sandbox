@@ -294,18 +294,20 @@ def usage_io_network() -> Tuple[dict, dict]:
     
     - A dictionary corresponding to the io with the following keys : received_packets,
     received_bytes, sent_packets, and sent_bytes."""
+    sleep_time = 2
+    
     disks = {d[0].split('/')[-1]: d[0] for d in psutil.disk_partitions()}
     raw_io1 = {disks[k]: v for k, v in psutil.disk_io_counters(True).items() if k in disks}
     raw_network1 = psutil.net_io_counters()
-    time.sleep(1)
+    time.sleep(sleep_time)
     raw_io2 = {disks[k]: v for k, v in psutil.disk_io_counters(True).items() if k in disks}
     raw_network2 = psutil.net_io_counters()
     
     network_usage = {
-        "sent_bytes":       raw_network2[0] - raw_network1[0],
-        "received_bytes":   raw_network2[1] - raw_network1[1],
-        "sent_packets":     raw_network2[2] - raw_network1[2],
-        "received_packets": raw_network2[3] - raw_network1[3],
+        "sent_bytes":       (raw_network2[0] - raw_network1[0]) // sleep_time,
+        "received_bytes":   (raw_network2[1] - raw_network1[1]) // sleep_time,
+        "sent_packets":     (raw_network2[2] - raw_network1[2]) // sleep_time,
+        "received_packets": (raw_network2[3] - raw_network1[3]) // sleep_time,
     }
     io_usage = {
         "read_iops":  dict(),
@@ -314,10 +316,10 @@ def usage_io_network() -> Tuple[dict, dict]:
         "write_bps":  dict(),
     }
     for p in raw_io1.keys():
-        io_usage["read_iops"][p] = raw_io2[p][0] - raw_io1[p][0]
-        io_usage["write_iops"][p] = raw_io2[p][1] - raw_io1[p][1]
-        io_usage["read_bps"][p] = raw_io2[p][2] - raw_io1[p][2]
-        io_usage["write_bps"][p] = raw_io2[p][3] - raw_io1[p][3]
+        io_usage["read_iops"][p] = (raw_io2[p][0] - raw_io1[p][0]) // sleep_time
+        io_usage["write_iops"][p] = (raw_io2[p][1] - raw_io1[p][1]) // sleep_time
+        io_usage["read_bps"][p] = (raw_io2[p][2] - raw_io1[p][2]) // sleep_time
+        io_usage["write_bps"][p] = (raw_io2[p][3] - raw_io1[p][3]) // sleep_time
     
     return io_usage, network_usage
 
@@ -331,7 +333,7 @@ def usage():
         "cpu":       {
             "frequency": psutil.cpu_freq()[0],
             "usage":     psutil.cpu_percent() / 100,
-            "usage_avg": [x / psutil.cpu_count() * 100 for x in psutil.getloadavg()]
+            "usage_avg": [x / psutil.cpu_count() for x in psutil.getloadavg()]
         },
         "memory":    {
             "ram":     psutil.virtual_memory()[3],
