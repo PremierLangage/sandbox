@@ -233,17 +233,20 @@ class ExecutorTestCase(SandboxTestCase):
         s = Sandbox.acquire()
         e = Executor(
             [
-                Command('sleep 0.1', timeout=0.4),
-                Command('sleep 0.1', timeout=0.4),
-                Command('sleep 0.1', timeout=0.4),
-                Command('sleep 0.1', timeout=0.4)
+                Command('sleep 0.1', timeout=0.5),
+                Command('sleep 0.1', timeout=0.5),
+                Command('sleep 0.1', timeout=0.5),
+                Command('sleep 0.1', timeout=0.5),
+                Command('sleep 0.1', timeout=0.5),
+                Command('sleep 0.1', timeout=0.5)
             ], s, self.uuid4
         )
         
         result = e.execute()
         s.release()
         self.assertEqual(SandboxErrCode.TIMEOUT, result["status"])
-        self.assertEqual(3, len(result["execution"]))
+        self.assertGreater(len(result["execution"]), 1)
+        self.assertLessEqual(len(result["execution"]), 5)
     
     
     def test_execute_failing(self):

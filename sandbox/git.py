@@ -20,8 +20,7 @@ def clone(alias: str, url: str) -> int:
     try:
         os.chdir(settings.EXTERNAL_LIBRARIES_ROOT)
         cmd = f"GIT_TERMINAL_PROMPT=0 git clone {url} {alias}"
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             shell=True)
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         out, err = p.communicate()
         if p.returncode:
             logger.error(f"Could not clone the external lib '{url}' into '{alias}'\n"
@@ -38,8 +37,7 @@ def pull(alias: str, url: str) -> int:
     try:
         os.chdir(os.path.join(settings.EXTERNAL_LIBRARIES_ROOT, alias))
         cmd = f"GIT_TERMINAL_PROMPT=0 git pull {url} master"
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                             shell=True)
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         out, err = p.communicate()
         if p.returncode:
             logger.error(f"Could not pull the external lib '{url}' with alias '{alias}'\n"

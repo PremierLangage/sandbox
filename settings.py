@@ -51,7 +51,7 @@ WSGI_APPLICATION = 'wsgi.application'
 DATABASES = dict()
 
 # Needed for manage.py to run without database
-TEST_RUNNER = 'testing.DatabaselessTestRunner'
+TEST_RUNNER = 'testing.DatabaseLessTestRunner'
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = list()
@@ -223,18 +223,17 @@ DOCKER_PARAMETERS = {
 }
 
 # Check if any of the above settings are override by a config.py file.
+logger = logging.getLogger(__name__)
 try:
     from config import *
-    
-    
-    logger = logging.getLogger(__name__)
     logger.info("Using config.py...")
 except ModuleNotFoundError:
-    pass
+    logger.info("No config file found")
+del logger
 
 # Override some settings from testing purpose
 if TESTING:
-    DOCKER_COUNT = 10
+    DOCKER_COUNT = 5
 
 from sandbox.containers import initialise_containers
 
