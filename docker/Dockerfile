@@ -7,8 +7,7 @@ ENV DEBIAN_FRONTEND noninteractive
 
 # Installing base requirements
 RUN echo 'deb http://deb.debian.org/debian stretch-backports main' > /etc/apt/sources.list.d/backports.list
-RUN apt-get update
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     gnupg2 \
     libasound2 \
@@ -30,11 +29,11 @@ RUN apt-get install -y --no-install-recommends \
     python3-distutils \
     python2 \
     postgresql \
-    sqlite
-RUN apt-get clean
-RUN apt-get autoclean
-RUN apt-get autoremove
-RUN rm -rf /var/lib/apt/lists/*
+    sqlite \
+    && apt-get clean \
+    && apt-get autoclean \
+    && apt-get autoremove \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set python3 as default
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 2
