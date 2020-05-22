@@ -50,8 +50,8 @@ def purging_containers():
         try:
             c.remove(force=True)
             logger.info(f"Container {c.short_id} removed.")
-        except Exception:
-            pass
+        except DockerException:
+            logger.exception(f"Could not remove container {c.short_id}.")
     
     # Purging any existing container environment.
     logger.info("Purging any existing container environment.")
