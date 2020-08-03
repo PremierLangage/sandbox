@@ -225,7 +225,7 @@ DOCKER_PARAMETERS = {
 # Check if any of the above settings are override by a config.py file.
 logger = logging.getLogger(__name__)
 try:
-    from config import *
+    from config import *  # noqa
     logger.info("Using config.py...")
 except ModuleNotFoundError:
     logger.info("No config file found")
@@ -235,7 +235,7 @@ del logger
 if TESTING:
     DOCKER_COUNT = 5
 
-from sandbox.containers import initialise_containers
+from sandbox.containers import initialise_containers  # noqa
 
 
 INITIALISING_THREAD = threading.Thread(target=initialise_containers)

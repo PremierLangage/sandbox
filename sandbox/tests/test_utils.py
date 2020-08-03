@@ -17,6 +17,7 @@ from .utils import ENV1, ENV2, EnvTestCase, SandboxTestCase, TEST_ENVIRONMENT_RO
 from .. import utils
 
 
+
 class MergeTarGZTestCase(EnvTestCase):
     
     def test_merge_tar_gz_both_none(self):
@@ -92,6 +93,7 @@ class MergeTarGZTestCase(EnvTestCase):
         tar.close()
 
 
+
 class GetEnvTestCase(SandboxTestCase):
     
     def test_get_env_ok(self):
@@ -103,6 +105,7 @@ class GetEnvTestCase(SandboxTestCase):
     
     def test_get_env_not_found(self):
         self.assertEqual(None, utils.get_env("unknown"))
+
 
 
 class ExtractTestCase(SandboxTestCase):
@@ -119,6 +122,7 @@ class ExtractTestCase(SandboxTestCase):
     def test_extract_not_found_file(self):
         with self.assertRaises(HTTPExceptions.NOT_FOUND):
             utils.extract(ENV1, "unkown")
+
 
 
 class ExecutedEnvTestCase(SandboxTestCase):
@@ -188,6 +192,7 @@ class ExecutedEnvTestCase(SandboxTestCase):
             self.assertEqual(b"both1\n", tar.extractfile("file3.txt").read())
 
 
+
 class ParseenvironTestCase(SimpleTestCase):
     
     def test_parse_environ_ok(self):
@@ -215,6 +220,7 @@ class ParseenvironTestCase(SimpleTestCase):
             utils.parse_environ(config)
 
 
+
 class ParseResultPathTestCase(SimpleTestCase):
     
     def test_parse_result_path_ok(self):
@@ -236,6 +242,7 @@ class ParseResultPathTestCase(SimpleTestCase):
         
         with self.assertRaises(HTTPExceptions.BAD_REQUEST):
             utils.parse_result_path(config)
+
 
 
 class ParseSavePathTestCase(SimpleTestCase):
@@ -261,6 +268,7 @@ class ParseSavePathTestCase(SimpleTestCase):
             utils.parse_save(config)
 
 
+
 class ContainerCpuTestCase(SimpleTestCase):
     
     @override_settings(DOCKER_PARAMETERS={
@@ -277,6 +285,7 @@ class ContainerCpuTestCase(SimpleTestCase):
         self.assertEqual(4, utils.container_cpu_count())
 
 
+
 class ContainerRamSwapTestCase(SimpleTestCase):
     
     @override_settings(DOCKER_PARAMETERS={
@@ -291,7 +300,7 @@ class ContainerRamSwapTestCase(SimpleTestCase):
     
     @override_settings(DOCKER_PARAMETERS={
         **settings.DOCKER_PARAMETERS, **{
-            "mem_limit":     -1,
+            "mem_limit": -1,
             "memswap_limit": -1
         },
     })
@@ -329,6 +338,7 @@ class ContainerRamSwapTestCase(SimpleTestCase):
         self.assertEqual((100000000, 50000000), utils.container_ram_swap())
 
 
+
 class ContainerStorageOptTestCase(SimpleTestCase):
     
     @override_settings(DOCKER_PARAMETERS={
@@ -357,6 +367,7 @@ class ContainerStorageOptTestCase(SimpleTestCase):
     })
     def test_container_storage_opt_host(self):
         self.assertEqual(-1, utils.container_storage_opt())
+    
     
     @override_settings(DOCKER_PARAMETERS={})
     def test_container_storage_opt_host(self):
