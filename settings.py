@@ -219,7 +219,6 @@ DOCKER_PARAMETERS = {
     "ulimits":          [
         Ulimit(name="core", soft=0, hard=0)
     ],
-    "user":             0,
 }
 
 # Check if any of the above settings are override by a config.py file.

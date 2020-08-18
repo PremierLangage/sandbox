@@ -38,7 +38,7 @@ jobs:
           ./bin/install.sh
 
       - name: Run Tox
-        run: tox -e py
+        run: tox
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == 3.8

@@ -150,7 +150,7 @@ class Executor:
     
     
     def _get_result(self) -> Optional[str]:
-        """Return the content of /home/docker/<path> if found, an empty string otherwise."""
+        """Return the content of /home/student/<path> if found, an empty string otherwise."""
         start = time.time()
         with open(os.path.join(self.sandbox.envpath, self.result_path), encoding="UTF-8") as f:
             content = f.read()
