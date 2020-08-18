@@ -4,7 +4,6 @@ LABEL maintainer="coumes.quentin@gmail.com"
 
 ENV DEBIAN_FRONTEND noninteractive
 
-
 # Installing base requirements
 RUN echo 'deb http://deb.debian.org/debian stretch-backports main' > /etc/apt/sources.list.d/backports.list
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -85,6 +84,7 @@ ENV LC_TYPE en_US.UTF-8
 RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 RUN locale-gen "en_US.UTF-8" && dpkg-reconfigure locales
 
-WORKDIR /home/docker
+WORKDIR /home/student
+RUN chmod -R a+rwx /home/student
 
 CMD ["bash"]

@@ -270,7 +270,7 @@ class ExecutorTestCase(SandboxTestCase):
         self.assertEqual(1, len(result["execution"]))
     
     
-    def test_execute_result_not_true(self):
+    def test_execute_result_not_utf8(self):
         s = Sandbox.acquire()
         cmd = "dd if=/dev/urandom of=binary bs=1M count=10"
         e = Executor([Command(cmd)], s, self.uuid4, result="binary")

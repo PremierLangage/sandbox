@@ -29,7 +29,7 @@ def create_container(name: str) -> Container:
         name=name,
         volumes={
             os.path.join(settings.DOCKER_VOLUME_HOST_BASEDIR, name): {
-                "bind": "/home/docker",
+                "bind": "/home/student",
                 "mode": "rw",
             },
             settings.EXTERNAL_LIBRARIES_ROOT:                        {
@@ -37,6 +37,7 @@ def create_container(name: str) -> Container:
                 "mode": "ro",
             },
         },
+        user=os.getuid(),
         **settings.DOCKER_PARAMETERS
     )
 
