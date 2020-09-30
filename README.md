@@ -63,8 +63,8 @@ Body must be encoded in `form_data` and must contains a json containing informat
             "var2": "value2"
     },
     "result_path":"file.json",
-    "environment": <UUID4>,
-    "save": <bool>,
+    "environment": "<UUID4>",
+    "save": "<bool>",
 }
 ```
 
