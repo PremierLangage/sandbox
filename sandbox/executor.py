@@ -8,10 +8,11 @@ import logging
 import os
 import tarfile
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import List, Optional, Tuple
 
 from django.conf import settings
+from django.utils import timezone
 from django_http_exceptions import HTTPExceptions
 from docker.models.containers import Container
 from timeout_decorator import timeout_decorator
@@ -22,6 +23,7 @@ from .enums import SandboxErrCode
 
 
 logger = logging.getLogger(__name__)
+
 
 
 class Command:
@@ -125,6 +127,7 @@ class Command:
         return status, result
 
 
+
 class Executor:
     """This class provide methods to execute bash commands."""
     
@@ -193,7 +196,7 @@ class Executor:
         }
         
         if self.save:
-            expire = datetime.now() + timedelta(seconds=settings.ENVIRONMENT_EXPIRATION)
+            expire = timezone.now() + timedelta(seconds=settings.ENVIRONMENT_EXPIRATION)
             response["environment"] = self.env_uuid
             response["expire"] = expire.isoformat()
             # Remove the one used by the container as it will cause an error in extract_env if the
