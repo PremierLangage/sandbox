@@ -46,7 +46,8 @@ RUN pip3 install \
     graphviz \
     mpld3 \
     networkx \
-    scipy
+    scipy \
+    prettytable
 
 
 # Installing Java 11
