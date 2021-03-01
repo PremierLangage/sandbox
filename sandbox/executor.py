@@ -15,8 +15,7 @@ from django.conf import settings
 from django.utils import timezone
 from django_http_exceptions import HTTPExceptions
 from docker.models.containers import Container
-from timeout_decorator import timeout_decorator
-
+from wrapt_timeout_decorator import  timeout
 from sandbox import utils
 from .containers import Sandbox
 from .enums import SandboxErrCode
@@ -94,12 +93,13 @@ class Command:
         """Execute the command on the given container."""
         start = time.time()
         try:
-            timeout = timeout_decorator.timeout(self.timeout, use_signals=False)
-            exec_run = timeout(container.exec_run)
+            exec_run = timeout(
+                self.timeout, use_signals=False
+            )(container.exec_run)
             exit_code, output = exec_run(
                 ["bash", "-c", self.command], environment=self.environ, demux=True)
             stdout, stderr = ("" if out is None else out.decode().strip() for out in output)
-        except timeout_decorator.TimeoutError:
+        except TimeoutError:
             exit_code = SandboxErrCode.TIMEOUT.value
             stdout = ""
             stderr = f"Command timed out after {self.timeout} seconds\n"

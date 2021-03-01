@@ -14,6 +14,7 @@ import logging
 import os
 import sys
 import threading
+import platform
 
 from apscheduler.triggers.cron import CronTrigger
 from docker.types import Ulimit
@@ -61,6 +62,12 @@ if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Logger information
+
+LOGGER_ADDRESS = '/dev/log'
+if platform.system() == 'Darwin':
+    # https://docs.python.org/3/library/logging.handlers.html#sysloghandler
+    LOGGER_ADDRESS = '/var/run/syslog'
+
 LOGGING = {
     'version':                  1,
     'disable_existing_loggers': False,
@@ -95,7 +102,7 @@ LOGGING = {
             'level':     'INFO',
             'class':     'logging.handlers.SysLogHandler',
             'facility':  'local6',
-            'address':   '/dev/log',
+            'address':   LOGGER_ADDRESS,
             'formatter': 'verbose',
             'filters':   ['require_debug_false'],
         },
@@ -103,7 +110,7 @@ LOGGING = {
             'level':     'DEBUG',
             'class':     'logging.handlers.SysLogHandler',
             'facility':  'local6',
-            'address':   '/dev/log',
+            'address':   LOGGER_ADDRESS,
             'formatter': 'verbose',
             'filters':   ['require_debug_true'],
         },
