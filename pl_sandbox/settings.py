@@ -12,12 +12,10 @@ https://docs.djangoproject.com/en/1.11/ref/settings/
 
 import logging
 import os
-import shutil
-import sys
 import threading
 import time
+import platform
 
-import docker
 
 from sandbox.container import initialise_container
 
@@ -58,6 +56,11 @@ if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Logger information
+LOGGER_ADDRESS = '/dev/log'
+if platform.system() == 'Darwin':
+    # https://docs.python.org/3/library/logging.handlers.html#sysloghandler
+    LOGGER_ADDRESS = '/var/run/syslog'
+
 LOGGING = {
     'version'                 : 1,
     'disable_existing_loggers': False,
@@ -91,7 +94,7 @@ LOGGING = {
             'level'    : 'INFO',
             'class'    : 'logging.handlers.SysLogHandler',
             'facility' : 'local6',
-            'address'  : '/dev/log',
+            'address'  : LOGGER_ADDRESS,
             'formatter': 'verbose',
             'filters'  : ['require_debug_false'],
         },
@@ -99,7 +102,7 @@ LOGGING = {
             'level'    : 'DEBUG',
             'class'    : 'logging.handlers.SysLogHandler',
             'facility' : 'local6',
-            'address'  : '/dev/log',
+            'address'  : LOGGER_ADDRESS,
             'formatter': 'verbose',
             'filters'  : ['require_debug_true'],
         },

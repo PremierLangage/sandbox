@@ -5,11 +5,11 @@ import tarfile
 import time
 import traceback
 
-import timeout_decorator
 from django.conf import settings
 
 from sandbox.enums import SandboxErrCode
 from sandbox.exceptions import ContextNotFoundError, GraderError
+from wrapt_timeout_decorator import *
 
 
 logger = logging.getLogger(__name__)
@@ -118,7 +118,7 @@ class Builder(Executor):
         return j
     
     
-    @timeout_decorator.timeout(BUILD_TIMEOUT, use_signals=False)
+    @timeout(BUILD_TIMEOUT, use_signals=False)
     def build(self):
         """Execute builder.py."""
         start = time.time()
@@ -210,7 +210,7 @@ class Evaluator(Executor):
         return j
     
     
-    @timeout_decorator.timeout(EVAL_TIMEOUT, use_signals=False)
+    @timeout(EVAL_TIMEOUT, use_signals=False)
     def evaluate(self):
         """Execute grader.py, returning the result. """
         start = time.time()
