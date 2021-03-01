@@ -15,7 +15,7 @@ from django.conf import settings
 from django.utils import timezone
 from django_http_exceptions import HTTPExceptions
 from docker.models.containers import Container
-from wrapt_timeout_decorator import  timeout
+from wrapt_timeout_decorator import timeout
 from sandbox import utils
 from .containers import Sandbox
 from .enums import SandboxErrCode
