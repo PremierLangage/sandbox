@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     python3 \
     git \
+    ghc \
     ocaml-nox \
     ocaml \
     perl \
@@ -28,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-distutils \
     python2 \
     postgresql \
+    libbsd-dev \
     sqlite \
     && apt-get clean \
     && apt-get autoclean \
@@ -53,7 +55,8 @@ RUN pip3 install \
     graphviz \
     mpld3 \
     networkx \
-    scipy
+    scipy \
+    prettytable
 
 
 # Installing Java 11
