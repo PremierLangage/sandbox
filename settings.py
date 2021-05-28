@@ -36,7 +36,11 @@ ALLOWED_HOSTS = ['127.0.0.1']
 
 # Application definition
 INSTALLED_APPS = [
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
     'sandbox',
+    'rest_framework',
+    'loader',
 ]
 
 MIDDLEWARE = [
@@ -47,6 +51,13 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'urls'
 
 WSGI_APPLICATION = 'wsgi.application'
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ]
+}
 
 # Database
 DATABASES = {
