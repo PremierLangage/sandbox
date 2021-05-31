@@ -1,5 +1,3 @@
-from django.http import response
-from django.urls.base import resolve
 from loader.models import FrozenResource
 from django.test import TestCase
 from django.urls import reverse
@@ -51,12 +49,14 @@ class FrozenTestCase(TestCase):
         response = self.client.post(reverse("loader:post_frozen"), data=data)
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], -1)
+        self.assertEqual(response["result"], {"hash":data_to_hash(self.data1)})
 
     def test_post(self):
         data = {"data":json.dumps(self.data3)}
         response = self.client.post(reverse("loader:post_frozen"), data=data)
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], 200)
+        self.assertEqual(response["result"], {"hash":data_to_hash(self.data3)})
 
         response = self.client.get(reverse("loader:frozen-list"))
         response = json.loads(response.content.decode())
@@ -81,6 +81,7 @@ class FrozenTestCase(TestCase):
         response = self.client.post(reverse("loader:post_frozen"), data=data)
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], 200)
+        self.assertEqual(response["result"], {"hash":data_to_hash(self.data3),"parent":data_to_hash(self.data1)})
 
         response = self.client.get(reverse("loader:frozen-detail", kwargs={'hash': data_to_hash(self.data3)}))
         fr3 = json.loads(response.content.decode())

@@ -1,14 +1,11 @@
-
-from typing import FrozenSet
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework import mixins, viewsets, status
+from django.core.exceptions import ObjectDoesNotExist
 
 from .serializers import FrozenSerializer
 from .models import FrozenResource
 from .enums import LoaderErrCode
-
-from hashlib import sha1
+from .utils import data_to_hash
 
 import json
 class FrozenViewSet(
@@ -35,18 +32,34 @@ class FrozenViewSet(
         return FrozenResource.objects.all()
 
     def post_frozen(self, request, *args, **kwargs):
-        if "data" in request.POST:
-            data = {}
-            for value in request.POST.getlist("data"):
-                dic = json.loads(value)
-                for k,v in dic.items():
-                    data[k] = v
-            hash = sha1(str(data).encode()).hexdigest() # determine hash
-            if FrozenResource.objects.filter(hash=hash).count() != 0:
-                return Response({"status":LoaderErrCode.ALREADY_PRESENT})
-            else:
-                FrozenResource.objects.create(hash=hash, data=data)
-                return Response({"status":status.HTTP_200_OK})
-        return Response({"status",LoaderErrCode.DATA_NOT_PRESENT})
+        stat = status.HTTP_200_OK
+        data = request.POST.get("data")
+        if data is None:
+            return Response({"status",LoaderErrCode.DATA_NOT_PRESENT})
+        
+        data = json.loads(data)
+        hash = data_to_hash(data)
+
+        result = {
+            "hash":hash,
+        }
+
+        if FrozenResource.objects.filter(hash=hash).count() != 0:
+            frozen = FrozenResource.objects.get(hash=hash)
+            stat = LoaderErrCode.ALREADY_PRESENT
+        else:
+            frozen = FrozenResource.objects.create(hash=hash, data=data)
+
+        parent = request.POST.get("parent")
+        if parent is not None:
+            try:
+                parent_frozen = FrozenResource.objects.get(hash=parent)
+                frozen.parent.add(parent_frozen)
+                frozen.save()
+                result["parent"] = parent
+            except ObjectDoesNotExist:
+                frozen.delete()
+                return Response({"status":LoaderErrCode.UNEXISTANT_PARENT})
+        return Response({"status":stat, "result":result})
 
         
