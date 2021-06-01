@@ -1,6 +1,7 @@
 from rest_framework.response import Response
-from rest_framework import mixins, viewsets, status
+from rest_framework import status
 from django.core.exceptions import ObjectDoesNotExist
+from rest_framework.views import APIView
 
 from .serializers import FrozenSerializer
 from .models import FrozenResource
@@ -8,30 +9,19 @@ from .enums import LoaderErrCode
 from .utils import data_to_hash
 
 import json
-class FrozenViewSet(
-    viewsets.GenericViewSet,
-    mixins.ListModelMixin,
-    mixins.CreateModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.DestroyModelMixin,
-    mixins.RetrieveModelMixin,):
+class FrozenViewSet(APIView):
 
     serializer_class = FrozenSerializer
-    lookup_field = 'hash'
-    lookup_url_kwarg = lookup_field
 
-    @classmethod
-    def as_list(cls):
-        return cls.as_view({'get': 'list', 'post': 'create'})
+    def get(self, request, *args, **kwargs):
+        try:
+            frozen = FrozenResource.objects.get(hash=kwargs["hash"])
+            parents = [p.hash for p in list(frozen.parent.all())]
+            return Response({"status":status.HTTP_200_OK, "frozen":{"hash":frozen.hash,"data":frozen.data,"parent":parents}})
+        except:
+            return Response({"status":LoaderErrCode.FROZEN_RESOURCE_NON_EXISTANT})
 
-    @classmethod
-    def as_detail(cls):
-        return cls.as_view({'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'})
-
-    def get_queryset(self):
-        return FrozenResource.objects.all()
-
-    def post_frozen(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         stat = status.HTTP_200_OK
         data = request.POST.get("data")
         if data is None:
@@ -59,7 +49,7 @@ class FrozenViewSet(
                 result["parent"] = parent
             except ObjectDoesNotExist:
                 frozen.delete()
-                return Response({"status":LoaderErrCode.UNEXISTANT_PARENT})
+                return Response({"status":LoaderErrCode.NON_EXISTANT_PARENT})
         return Response({"status":stat, "result":result})
 
         
