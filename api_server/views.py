@@ -32,7 +32,7 @@ class FrozenViewSet(
     def get(self, request, id):
         try:
             frozen = FrozenResource.objects.get(id=id)
-            parents = [p.hash for p in list(frozen.parent.all())]
+            parents = [p.id for p in list(frozen.parent.all())]
             return Response({"status":status.HTTP_200_OK, "frozen":{"id":frozen.pk, "hash":frozen.hash,"data":frozen.data,"parent":parents}})
         except:
             return Response({"status":LoaderErrCode.NON_EXISTANT_FROZEN_RESOURCE})
@@ -62,7 +62,7 @@ class FrozenViewSet(
         parent = request.POST.get("parent")
         if parent is not None:
             try:
-                parent_frozen = FrozenResource.objects.get(hash=parent)
+                parent_frozen = FrozenResource.objects.get(id=parent)
                 frozen.parent.add(parent_frozen)
                 frozen.save()
                 result["parent"] = parent
