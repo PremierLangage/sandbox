@@ -23,7 +23,7 @@ class FrozenTestCase(TestCase):
         super().setUp()
     
     def test_get(self):
-        response = self.client.get(reverse('api_server:frozen_get'), data={'hash': data_to_hash(self.data1)})
+        response = self.client.get(reverse('api_server:frozen_get', args=[self.frozen1.id]))
         response = json.loads(response.content.decode())
 
         self.assertEqual(response["status"], 200)
@@ -34,32 +34,19 @@ class FrozenTestCase(TestCase):
         self.assertEqual(frozen["parent"], [])
 
     def test_get_non_existant(self):
-        response = self.client.get(reverse('api_server:frozen_get'), data={'hash': "hash"})
+        response = self.client.get(reverse('api_server:frozen_get', args=[10]))
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], LoaderErrCode.NON_EXISTANT_FROZEN_RESOURCE)
-
-    def test_get_no_data(self):
-        response = self.client.get(reverse('api_server:frozen_get'))
-        response = json.loads(response.content.decode())
-        self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_PRESENT)
-
-    def test_post_already_present(self):
-        data = {"data":json.dumps(self.data1)}
-        response = self.client.post(reverse("api_server:frozen_post", args=[data_to_hash(self.data1)]), data=data)
-        response = json.loads(response.content.decode())
-
-        self.assertEqual(response["status"], -1)
-        self.assertEqual(response["result"]["hash"], data_to_hash(self.data1))
     
     def test_post(self):
         data = {"data":json.dumps(self.data3)}
-        response = self.client.post(reverse("api_server:frozen_post", args=[data_to_hash(self.data3)]), data=data)
+        response = self.client.post(reverse("api_server:frozen_post"), data=data)
         response = json.loads(response.content.decode())
 
         self.assertEqual(response["status"], 200)
         self.assertEqual(response["result"]["hash"], data_to_hash(self.data3))
 
-        response = self.client.get(reverse("api_server:frozen_get"), data={'hash': data_to_hash(self.data3)})
+        response = self.client.get(reverse("api_server:frozen_get", args=[response["result"]["id"]]))
         response = json.loads(response.content.decode())
 
         self.assertEqual(response["status"], 200)
@@ -69,19 +56,27 @@ class FrozenTestCase(TestCase):
         self.assertEqual(frozen["data"], self.data3)
         self.assertEqual(frozen["parent"], [])
 
+    def test_post_already_present(self):
+        data = {"data":json.dumps(self.data1)}
+        response = self.client.post(reverse("api_server:frozen_post"), data=data)
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], -1)
+        self.assertEqual(response["result"]["hash"], data_to_hash(self.data1))
+
     def test_post_without_data(self):
-        response = self.client.post(reverse("api_server:frozen_post", args=[data_to_hash(self.data1)]))
+        response = self.client.post(reverse("api_server:frozen_post"), data={"hash":data_to_hash(self.data1)})
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_PRESENT)
 
     def test_post_data_not_valid(self):
-        response = self.client.post(reverse("api_server:frozen_post", args=[data_to_hash(self.data1)]), data={"data":"data"})
+        response = self.client.post(reverse("api_server:frozen_post"), data={"data":"data"})
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_VALID)
 
     def test_post_with_parent(self):
         data = {"data":json.dumps(self.data3), "parent":data_to_hash(self.data1)}
-        response = self.client.post(reverse("api_server:frozen_post", args=[data_to_hash(self.data1)]), data=data)
+        response = self.client.post(reverse("api_server:frozen_post"), data=data)
         response = json.loads(response.content.decode())
 
         self.assertEqual(response["status"], 200)
@@ -89,7 +84,7 @@ class FrozenTestCase(TestCase):
         self.assertEqual(response["result"]["parent"], data_to_hash(self.data1))
 
 
-        response = self.client.get(reverse("api_server:frozen_get"), data={'hash': data_to_hash(self.data3)})
+        response = self.client.get(reverse("api_server:frozen_get", args=[response["result"]["id"]]))
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], 200)
         frozen = response["frozen"]
@@ -98,7 +93,7 @@ class FrozenTestCase(TestCase):
         self.assertEqual(frozen["parent"], [data_to_hash(self.data1)])
 
 
-        response = self.client.get(reverse("api_server:frozen_get"), data={'hash': data_to_hash(self.data1)})
+        response = self.client.get(reverse("api_server:frozen_get", args=[self.frozen1.id]))
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], 200)
         frozen = response["frozen"]
@@ -109,11 +104,8 @@ class FrozenTestCase(TestCase):
 
     def test_post_with_wrong_parent(self):
         data = {"data":json.dumps(self.data3), "parent":data_to_hash({"wrong":"wrong"})}
-        response = self.client.post(reverse("api_server:frozen_post", args=[data_to_hash(self.data1)]), data=data)
+        response = self.client.post(reverse("api_server:frozen_post"), data=data)
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], LoaderErrCode.NON_EXISTANT_PARENT)
-
-        response = self.client.get(reverse("api_server:frozen_get"), data={'hash': data_to_hash(self.data3)})
-        response = json.loads(response.content.decode())
-        self.assertEqual(response["status"], LoaderErrCode.NON_EXISTANT_FROZEN_RESOURCE)
+        self.assertEqual("id" in response["result"], False)
 
