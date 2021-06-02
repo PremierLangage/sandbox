@@ -9,6 +9,9 @@ from .utils import data_to_hash, build_env, build_config, tar_from_dic
 
 import json
 import requests
+import os
+
+SANDBOX = 'http://127.0.0.1:7000'
 class FrozenViewSet(
     viewsets.GenericViewSet,
     mixins.ListModelMixin,
@@ -90,6 +93,7 @@ class FrozenViewSet(
         else:
             config = build_config(['sh builder.sh'], True)
 
+        url = os.path.join(SANDBOX, "execute/")
         response = requests.post(url, data=config, files=env)
         return Response({"result":response})
         
