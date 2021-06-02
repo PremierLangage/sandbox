@@ -19,5 +19,5 @@ from django.urls import path
 
 urlpatterns = [
     url(r'^', include('sandbox.urls')),
-    url(r'^', include('loader.urls')),
+    url(r'^', include('api_server.urls')),
 ]

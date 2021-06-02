@@ -56,5 +56,3 @@ class FrozenViewSet(APIView):
                 frozen.delete()
                 return_status = LoaderErrCode.NON_EXISTANT_PARENT
         return Response({"status":return_status, "result":result})
-
-        

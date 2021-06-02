@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'sandbox',
     'rest_framework',
-    'loader',
+    'api_server',
 ]
 
 MIDDLEWARE = [
