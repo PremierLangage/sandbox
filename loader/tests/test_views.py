@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from loader.utils import data_to_hash
+from loader.enums import LoaderErrCode
 
 import json
 import os
@@ -22,7 +23,7 @@ class FrozenTestCase(TestCase):
         super().setUp()
     
     def test_get(self):
-        response = self.client.get(reverse('loader:frozen', kwargs={'hash': data_to_hash(self.data1)}))
+        response = self.client.get(reverse('loader:frozen'), data={'hash': data_to_hash(self.data1)})
         response = json.loads(response.content.decode())
 
         self.assertEqual(response["status"], 200)
@@ -32,7 +33,17 @@ class FrozenTestCase(TestCase):
         self.assertEqual(frozen["data"], self.data1)
         self.assertEqual(frozen["parent"], [])
 
-    def test_post_already_present(self):
+    def test_get_non_existant(self):
+        response = self.client.get(reverse('loader:frozen'), data={'hash': "hash"})
+        response = json.loads(response.content.decode())
+        self.assertEqual(response["status"], LoaderErrCode.NON_EXISTANT_FROZEN_RESOURCE)
+
+    def test_get_no_data(self):
+        response = self.client.get(reverse('loader:frozen'))
+        response = json.loads(response.content.decode())
+        self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_PRESENT)
+
+    def test_post_FROZEN_RESOURCE_ALREADY_PRESENT(self):
         data = {"data":json.dumps(self.data1)}
         response = self.client.post(reverse("loader:frozen"), data=data)
         response = json.loads(response.content.decode())
@@ -48,7 +59,7 @@ class FrozenTestCase(TestCase):
         self.assertEqual(response["status"], 200)
         self.assertEqual(response["result"], {"hash":data_to_hash(self.data3)})
 
-        response = self.client.get(reverse("loader:frozen", kwargs={'hash': data_to_hash(self.data3)}))
+        response = self.client.get(reverse("loader:frozen"), data={'hash': data_to_hash(self.data3)})
         response = json.loads(response.content.decode())
 
         self.assertEqual(response["status"], 200)
@@ -57,6 +68,16 @@ class FrozenTestCase(TestCase):
         self.assertEqual(frozen["hash"], data_to_hash(self.data3))
         self.assertEqual(frozen["data"], self.data3)
         self.assertEqual(frozen["parent"], [])
+
+    def test_post_without_data(self):
+        response = self.client.post(reverse("loader:frozen"))
+        response = json.loads(response.content.decode())
+        self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_PRESENT)
+
+    def test_post_data_not_valid(self):
+        response = self.client.post(reverse("loader:frozen"), data={"data":"data"})
+        response = json.loads(response.content.decode())
+        self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_VALID)
 
     def test_post_with_parent(self):
         data = {"data":json.dumps(self.data3), "parent":data_to_hash(self.data1)}
@@ -67,7 +88,7 @@ class FrozenTestCase(TestCase):
         self.assertEqual(response["result"], {"hash":data_to_hash(self.data3),"parent":data_to_hash(self.data1)})
 
 
-        response = self.client.get(reverse("loader:frozen", kwargs={'hash': data_to_hash(self.data3)}))
+        response = self.client.get(reverse("loader:frozen"), data={'hash': data_to_hash(self.data3)})
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], 200)
         frozen = response["frozen"]
@@ -76,7 +97,7 @@ class FrozenTestCase(TestCase):
         self.assertEqual(frozen["parent"], [data_to_hash(self.data1)])
 
 
-        response = self.client.get(reverse("loader:frozen", kwargs={'hash': data_to_hash(self.data1)}))
+        response = self.client.get(reverse("loader:frozen"), data={'hash': data_to_hash(self.data1)})
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], 200)
         frozen = response["frozen"]
@@ -89,9 +110,9 @@ class FrozenTestCase(TestCase):
         data = {"data":json.dumps(self.data3), "parent":data_to_hash({"wrong":"wrong"})}
         response = self.client.post(reverse("loader:frozen"), data=data)
         response = json.loads(response.content.decode())
-        self.assertEqual(response["status"], -3)
+        self.assertEqual(response["status"], LoaderErrCode.NON_EXISTANT_PARENT)
 
-        response = self.client.get(reverse("loader:frozen", kwargs={'hash': data_to_hash(self.data3)}))
+        response = self.client.get(reverse("loader:frozen"), data={'hash': data_to_hash(self.data3)})
         response = json.loads(response.content.decode())
-        self.assertEqual(response["status"], -4)
+        self.assertEqual(response["status"], LoaderErrCode.NON_EXISTANT_FROZEN_RESOURCE)
 

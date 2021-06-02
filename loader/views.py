@@ -1,6 +1,5 @@
 from rest_framework.response import Response
 from rest_framework import status
-from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.views import APIView
 
 from .serializers import FrozenSerializer
@@ -13,31 +12,37 @@ class FrozenViewSet(APIView):
 
     serializer_class = FrozenSerializer
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request):
+        hash = request.GET.get("hash")
+        if hash is None:
+            return Response({"status":LoaderErrCode.DATA_NOT_PRESENT})
         try:
-            frozen = FrozenResource.objects.get(hash=kwargs["hash"])
+            frozen = FrozenResource.objects.get(hash=hash)
             parents = [p.hash for p in list(frozen.parent.all())]
             return Response({"status":status.HTTP_200_OK, "frozen":{"hash":frozen.hash,"data":frozen.data,"parent":parents}})
         except:
-            return Response({"status":LoaderErrCode.FROZEN_RESOURCE_NON_EXISTANT})
+            return Response({"status":LoaderErrCode.NON_EXISTANT_FROZEN_RESOURCE})
 
-    def post(self, request, *args, **kwargs):
-        stat = status.HTTP_200_OK
+    def post(self, request):
+        return_status = status.HTTP_200_OK
         data = request.POST.get("data")
         if data is None:
-            return Response({"status",LoaderErrCode.DATA_NOT_PRESENT})
+            return Response({"status":LoaderErrCode.DATA_NOT_PRESENT})
         
-        data = json.loads(data)
-        hash = data_to_hash(data)
+        try:
+            data = json.loads(data)
+            hash = data_to_hash(data)
+        except:
+            return Response({"status":LoaderErrCode.DATA_NOT_VALID})
 
         result = {
             "hash":hash,
         }
 
-        if FrozenResource.objects.filter(hash=hash).count() != 0:
+        try:
             frozen = FrozenResource.objects.get(hash=hash)
-            stat = LoaderErrCode.ALREADY_PRESENT
-        else:
+            return_status = LoaderErrCode.FROZEN_RESOURCE_ALREADY_PRESENT
+        except:
             frozen = FrozenResource.objects.create(hash=hash, data=data)
 
         parent = request.POST.get("parent")
@@ -47,9 +52,9 @@ class FrozenViewSet(APIView):
                 frozen.parent.add(parent_frozen)
                 frozen.save()
                 result["parent"] = parent
-            except ObjectDoesNotExist:
+            except:
                 frozen.delete()
-                return Response({"status":LoaderErrCode.NON_EXISTANT_PARENT})
-        return Response({"status":stat, "result":result})
+                return_status = LoaderErrCode.NON_EXISTANT_PARENT
+        return Response({"status":return_status, "result":result})
 
         
