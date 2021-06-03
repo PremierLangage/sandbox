@@ -81,7 +81,7 @@ class FrozenViewSet(
         if "answer" in data and "env_id" in data:
             answer = data["answer"]
             env_id = data["env_id"]
-            env = {'environment':tar_from_dic({answer.json:json.dumps(answer)})}
+            env = {'environment':tar_from_dic({"answer.json":json.dumps(answer)})}
         else:
             env = {'environment':build_env(json.loads(data))}
 
@@ -93,4 +93,4 @@ class FrozenViewSet(
         url = os.path.join(SANDBOX, "execute/")
         response = requests.post(url, data=config, files=env)
         return Response({"result":response})
-        
+      

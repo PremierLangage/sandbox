@@ -6,9 +6,6 @@ from api_server.utils import data_to_hash
 from api_server.enums import LoaderErrCode
 
 import json
-import os
-
-TEST_DATA_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_data")
 
 class FrozenTestCase(TestCase):
 
@@ -65,7 +62,7 @@ class FrozenTestCase(TestCase):
         self.assertEqual(response["result"]["hash"], data_to_hash(self.data1))
 
     def test_post_without_data(self):
-        response = self.client.post(reverse("api_server:frozen_post"), data={"hash":data_to_hash(self.data1)})
+        response = self.client.post(reverse("api_server:frozen_post"))
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_PRESENT)
 
@@ -82,6 +79,7 @@ class FrozenTestCase(TestCase):
         self.assertEqual(response["status"], 200)
         self.assertEqual(response["result"]["hash"], data_to_hash(self.data3))
         self.assertEqual(response["result"]["parent"], str(self.frozen1.id))
+        id = response["result"]["id"]
 
 
         response = self.client.get(reverse("api_server:frozen_get", args=[response["result"]["id"]]))
@@ -100,7 +98,7 @@ class FrozenTestCase(TestCase):
         self.assertEqual(frozen["hash"], data_to_hash(self.data1))
         self.assertEqual(frozen["data"], self.data1)
         self.assertEqual(frozen["parent"], [])
-        self.assertEqual(list(self.frozen1.frozenresource_set.all()), [FrozenResource.objects.get(hash=data_to_hash(self.data3))])
+        self.assertEqual(list(self.frozen1.frozenresource_set.all()), [FrozenResource.objects.get(id=id)])
 
     def test_post_with_wrong_parent(self):
         data = {"data":json.dumps(self.data3), "parent":0}
