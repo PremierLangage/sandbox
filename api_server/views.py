@@ -1,17 +1,20 @@
+from django.conf import settings
 from rest_framework.response import Response
 from rest_framework import status, mixins, viewsets
-from rest_framework.views import APIView
+from rest_framework.request import Request
+
+from sandbox.views import ExecuteView
+from django.urls.base import get_urlconf
+from django.urls.resolvers import get_resolver
 
 from .serializers import FrozenSerializer
 from .models import FrozenResource
 from .enums import LoaderErrCode
 from .utils import data_to_hash, build_env, build_config, tar_from_dic
 
+import settings
 import json
-import requests
-import os
-
-SANDBOX = 'http://127.0.0.1:7000'
+import io
 class FrozenViewSet(
     viewsets.GenericViewSet,
     mixins.ListModelMixin,
@@ -74,23 +77,27 @@ class FrozenViewSet(
 
     def play_demo(self, request):
         data = request.POST.get("data")
-        answer = None
+
         if data is None:
             return Response({"status":LoaderErrCode.DATA_NOT_PRESENT})
+
+        data = json.loads(data)
 
         if "answer" in data and "env_id" in data:
             answer = data["answer"]
             env_id = data["env_id"]
-            env = {'environment':tar_from_dic({"answer.json":json.dumps(answer)})}
+            env = tar_from_dic({"answers.json":json.dumps(answer)})
+            config = build_config(['sh grader.sh'], True, environment=env_id, result_path="feedback.html")
         else:
-            env = {'environment':build_env(json.loads(data))}
-
-        if answer:
-            config = build_config(['sh grader.sh'], True, environment=env_id)
-        else:
+            env = build_env(data)
             config = build_config(['sh builder.sh'], True)
 
-        url = os.path.join(SANDBOX, "execute/")
-        response = requests.post(url, data=config, files=env)
-        return Response({"result":response})
-      
+        request.FILES["environment"] = io.BytesIO(env)
+
+        _mutable = request._request._post._mutable
+        request._request._post._mutable = True
+        request._request._post["config"] = config
+        request._request._post._mutable = _mutable
+
+        return Response(ExecuteView.as_view()(request).content)
+        
