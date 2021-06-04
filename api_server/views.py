@@ -1,20 +1,18 @@
-from django.conf import settings
+import json
+import io
+from django.test.utils import captured_output
+
 from rest_framework.response import Response
 from rest_framework import status, mixins, viewsets
-from rest_framework.request import Request
-
-from sandbox.views import ExecuteView
-from django.urls.base import get_urlconf
-from django.urls.resolvers import get_resolver
 
 from .serializers import FrozenSerializer
 from .models import FrozenResource
 from .enums import LoaderErrCode
 from .utils import data_to_hash, build_env, build_config, tar_from_dic
 
-import settings
-import json
-import io
+from sandbox.views import ExecuteView
+
+
 class FrozenViewSet(
     viewsets.GenericViewSet,
     mixins.ListModelMixin,
@@ -75,13 +73,20 @@ class FrozenViewSet(
                 return_status = LoaderErrCode.NON_EXISTANT_PARENT
         return Response({"status":return_status, "result":result})
 
+    
+        
+class CallSandboxViewSet(
+    viewsets.GenericViewSet
+):
     def play_demo(self, request):
         data = request.POST.get("data")
 
         if data is None:
             return Response({"status":LoaderErrCode.DATA_NOT_PRESENT})
-
-        data = json.loads(data)
+        try:
+            data = json.loads(data)
+        except:
+            return Response({"status":LoaderErrCode.DATA_NOT_VALID})
 
         if "answer" in data and "env_id" in data:
             answer = data["answer"]
@@ -99,5 +104,4 @@ class FrozenViewSet(
         request._request._post["config"] = config
         request._request._post._mutable = _mutable
 
-        return Response(ExecuteView.as_view()(request).content)
-        
+        return Response(json.loads(ExecuteView.as_view()(request).content))
