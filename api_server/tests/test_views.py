@@ -2,10 +2,18 @@ from api_server.models import FrozenResource
 from django.test import TestCase
 from django.urls import reverse
 
+from sandbox.tests.utils import SandboxTestCase
+
 from api_server.utils import data_to_hash
 from api_server.enums import LoaderErrCode
 
+from sandbox.containers import initialise_containers, purging_containers
+
 import json
+import os
+import aiohttp
+
+TEST_DATA_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_data")
 
 class FrozenTestCase(TestCase):
 
@@ -17,7 +25,11 @@ class FrozenTestCase(TestCase):
         self.frozen1 = FrozenResource.objects.create(hash=data_to_hash(self.data1), data=self.data1)
         self.frozen2 = FrozenResource.objects.create(hash=data_to_hash(self.data2), data=self.data2)
 
+        with open(os.path.join(TEST_DATA_ROOT, "basic_pl.json")) as f:
+            self.pl_data = json.load(f)
+
         super().setUp()
+    
     
     def test_get(self):
         response = self.client.get(reverse('api_server:frozen_get', args=[self.frozen1.id]))
@@ -107,3 +119,52 @@ class FrozenTestCase(TestCase):
         self.assertEqual(response["status"], LoaderErrCode.NON_EXISTANT_PARENT)
         self.assertEqual("id" in response["result"], False)
 
+
+class CallSandboxTestCase(TestCase):
+    def setUp(self) -> None:
+        with open(os.path.join(TEST_DATA_ROOT, "basic_pl.json")) as f:
+            self.pl_data = json.load(f)
+
+        initialise_containers()
+        super().setUp()
+
+    
+    def tearDown(self) -> None:
+        purging_containers()
+        super().tearDown()
+
+    def test_play_demo(self):
+        data = {"data": json.dumps(self.pl_data)}
+        
+        response = self.client.post(reverse("api_server:play_demo"), data=data)
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], 0)
+
+        response = self.client.post(reverse("api_server:play_demo"), data={"data":json.dumps({"answer":{"answer": ""}, "env_id":response["environment"]})})
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], 0)
+        self.assertEqual(response["execution"][0]["stdout"], "0")
+
+        response = self.client.post(reverse("api_server:play_demo"), data={"data":json.dumps({"answer":{"answer": "pim = 1\npam = 2\npom = 3"}, "env_id":response["environment"]})})
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], 0)
+        self.assertEqual(response["execution"][0]["stdout"], "100")
+    
+    def test_play_demo_data_not_present(self):
+        data = {"wrong": json.dumps(self.pl_data)}
+        
+        response = self.client.post(reverse("api_server:play_demo"), data=data)
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_PRESENT)
+
+    def test_play_demo_data_not_valid(self):
+        data = {"data": self.pl_data}
+        
+        response = self.client.post(reverse("api_server:play_demo"), data=data)
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_VALID)
