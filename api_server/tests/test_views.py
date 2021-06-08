@@ -168,3 +168,27 @@ class CallSandboxTestCase(TestCase):
         response = json.loads(response.content.decode())
 
         self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_VALID)
+
+    def test_play_exo(self):
+        data = {"data": json.dumps(self.pl_data)}
+
+        response = self.client.post(reverse("api_server:frozen_post"), data=data)
+        response = json.loads(response.content.decode())
+        id = response["result"]["id"]
+        
+        response = self.client.post(reverse("api_server:play_exo"), data={"data":json.dumps({"resource_id":id})})
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], 0)
+
+        response = self.client.post(reverse("api_server:play_exo"), data={"data":json.dumps({"answer":{"answer": ""}, "env_id":response["environment"]})})
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], 0)
+        self.assertEqual(response["execution"][0]["stdout"], "0")
+
+        response = self.client.post(reverse("api_server:play_exo"), data={"data":json.dumps({"answer":{"answer": "pim = 1\npam = 2\npom = 3"}, "env_id":response["environment"]})})
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], 0)
+        self.assertEqual(response["execution"][0]["stdout"], "100")
