@@ -8,7 +8,7 @@ from rest_framework import status, mixins, viewsets
 from .serializers import FrozenSerializer
 from .models import FrozenResource
 from .enums import LoaderErrCode
-from .utils import data_to_hash, build_env, build_config, tar_from_dic
+from .utils import build_answer, build_resource, data_to_hash, build_env, build_config, tar_from_dic
 
 from sandbox.views import ExecuteView
 
@@ -78,6 +78,25 @@ class FrozenViewSet(
 class CallSandboxViewSet(
     viewsets.GenericViewSet
 ):
+    def _build_request(self, request, env, config):
+        request.FILES["environment"] = io.BytesIO(env)
+
+        _mutable = request._request._post._mutable
+        request._request._post._mutable = True
+        request._request._post["config"] = config
+        request._request._post._mutable = _mutable
+
+    def _get_data_from_frozen(self, data: dict):
+        env_id = None
+        if "resource_id" not in data:
+            return Response()
+
+        if "env_id" in data:
+            env_id = data["env_id"]
+
+        frozen = FrozenResource.objects.get(id=int(data["resource_id"]))
+        return build_resource(data=frozen.data, env_id=env_id)
+
     def play_demo(self, request):
         data = request.POST.get("data")
 
@@ -89,19 +108,38 @@ class CallSandboxViewSet(
             return Response({"status":LoaderErrCode.DATA_NOT_VALID})
 
         if "answer" in data and "env_id" in data:
-            answer = data["answer"]
-            env_id = data["env_id"]
-            env = tar_from_dic({"answers.json":json.dumps(answer)})
-            config = build_config(['sh grader.sh'], True, environment=env_id, result_path="feedback.html")
+            env, config = build_answer(data=data)
         else:
-            env = build_env(data)
-            config = build_config(['sh builder.sh'], True)
+            env, config = build_resource(data=data)
 
-        request.FILES["environment"] = io.BytesIO(env)
-
-        _mutable = request._request._post._mutable
-        request._request._post._mutable = True
-        request._request._post["config"] = config
-        request._request._post._mutable = _mutable
+        self._build_request(request, env=env, config=config)
 
         return Response(json.loads(ExecuteView.as_view()(request).content))
+
+    """
+    def play_exo(self, request):
+        data = request.POST.get("data")
+        if data is None:
+            return Response({"status":LoaderErrCode.DATA_NOT_PRESENT})
+        try:
+            data = json.loads(data)
+        except:
+            return Response({"status":LoaderErrCode.DATA_NOT_VALID})
+
+        if "answer" in data and "env_id" in data:
+            env, config = build_answer(data=data)
+        else:
+            env, config = self._get_data_from_frozen(data)
+
+        self._build_request(request, env=env, config=config)
+
+        return Response(json.loads(ExecuteView.as_view()(request).content))
+    """
+        
+        
+        
+
+
+
+
+        

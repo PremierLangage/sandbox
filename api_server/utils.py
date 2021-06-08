@@ -63,3 +63,17 @@ def build_config(list_commands: list, save: bool, environment=None, result_path=
     if result_path is not None:
         commands["result_path"] = result_path
     return json.dumps(commands)
+
+def build_resource(data: dict, env_id = None):
+    env = build_env(data)
+    config = build_config(['sh builder.sh'], True, environment=env_id, result_path="processed.json")
+    
+    return env, config
+
+def build_answer(data: dict):
+    answer = data["answer"]
+    env_id = data["env_id"]
+    env = tar_from_dic({"answers.json":json.dumps(answer)})
+    config = build_config(['sh grader.sh'], True, environment=env_id, result_path="feedback.html")
+
+    return env, config
