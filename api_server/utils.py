@@ -1,20 +1,31 @@
-from hashlib import sha224
-from typing import AnyStr
-
-from .components import components_source
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 import json
 import tempfile
 import tarfile
 import os
 
+from hashlib import sha224
+from typing import AnyStr
+
+from .components import components_source
+
 def data_to_hash(data: dict):
+    """
+        Hash a data with sha224.
+
+        :param data: data to hash
+    """
     return sha224(str(data).encode()).hexdigest() 
 
 
 def tar_from_dic(files: dict) -> AnyStr:
-    """Returns binaries of a tar gz file with the given file dictionnary
-    Each entry of files is: "file_name": "file_content"
+    """
+        Returns binaries of a tar gz file with the given file dictionnary
+        Each entry of files is: "file_name": "file_content".
+
+        :param files: dict of files and their content
     """
     with tempfile.TemporaryDirectory() as tmp_dir, tempfile.TemporaryDirectory() as env_dir:
         with tarfile.open(tmp_dir + "/environment.tgz", "w:gz") as tar:
@@ -30,8 +41,12 @@ def tar_from_dic(files: dict) -> AnyStr:
     return tar_stream
 
 def build_env(pl_data: dict, answer: dict = None) -> AnyStr:
-        """Creates the environment to execute the builder or the grader
-        on the sandbox.
+        """
+            Creates the environment to execute the builder or the grader
+            on the sandbox.
+
+            :param pl_data:     The content of pl
+            :param answer:      The answer send by the client
         """
         env = dict(pl_data['__files'])
         env["components.py"] = components_source()
@@ -54,7 +69,15 @@ def build_env(pl_data: dict, answer: dict = None) -> AnyStr:
         
         return tar_from_dic(env)
 
-def build_config(list_commands: list, save: bool, environment=None, result_path=None):
+def build_config(list_commands: list, save: bool, environment: str=None, result_path: str=None):
+    """
+        Creates the configuration to execute in the sandbox.
+
+        :param list_commands:   The list of commands to execute
+        :param save:            True if the sandbox need to save the environment, False else
+        :param environment:     Name of an existing environment to use
+        :param result_path:     Path to a file in environment, where the content will be in the result
+    """
     commands = {
         "commands": list_commands,
         "save": save,
@@ -64,13 +87,24 @@ def build_config(list_commands: list, save: bool, environment=None, result_path=
         commands["result_path"] = result_path
     return json.dumps(commands)
 
-def build_resource(data: dict, env_id = None):
+def build_resource(data: dict, env_id: str = None):
+    """
+        Create resources to build in the sandbox.
+
+        :param data:    data to send to sandbox
+        :param env_id:  env_id of an existing environment
+    """
     env = build_env(data)
     config = build_config(['sh builder.sh'], True, environment=env_id, result_path="processed.json")
     
     return env, config
 
 def build_answer(data: dict):
+    """
+        Create the answer to evaluate in the sandbox.
+
+        :param data:    The data contains env_id and answer.
+    """
     answer = data["answer"]
     env_id = data["env_id"]
     env = tar_from_dic({"answers.json":json.dumps(answer)})
