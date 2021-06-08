@@ -7,11 +7,12 @@ import tarfile
 import os
 
 from hashlib import sha224
-from typing import AnyStr
+from typing import AnyStr, Tuple
 
+from .models import FrozenResource
 from .components import components_source
 
-def data_to_hash(data: dict):
+def data_to_hash(data: dict) -> str:
     """
         Hash a data with sha224.
 
@@ -69,7 +70,7 @@ def build_env(pl_data: dict, answer: dict = None) -> AnyStr:
         
         return tar_from_dic(env)
 
-def build_config(list_commands: list, save: bool, environment: str=None, result_path: str=None):
+def build_config(list_commands: list, save: bool, environment: str=None, result_path: str=None) -> str:
     """
         Creates the configuration to execute in the sandbox.
 
@@ -87,19 +88,40 @@ def build_config(list_commands: list, save: bool, environment: str=None, result_
         commands["result_path"] = result_path
     return json.dumps(commands)
 
-def build_resource(data: dict, env_id: str = None):
+def build_resource_demo(data: dict) -> Tuple[dict, dict]:
     """
         Create resources to build in the sandbox.
 
         :param data:    data to send to sandbox
-        :param env_id:  env_id of an existing environment
     """
+    if "answer" in data and "env_id" in data:
+            return build_answer(data=data)
+    env_id = data["env_id"] if "env_id" in data else None
     env = build_env(data)
     config = build_config(['sh builder.sh'], True, environment=env_id, result_path="processed.json")
     
     return env, config
 
-def build_answer(data: dict):
+def build_resource(data: dict) -> Tuple[dict, dict]:
+    """
+        Create resources to build in the sandbox.
+
+        :param data:    data to send to sandbox
+    """
+    if "answer" in data and "env_id" in data:
+        return build_answer(data=data)
+
+    if "resource_id" not in data:
+        return None, None
+
+    frozen = FrozenResource.objects.get(id=int(data["resource_id"]))
+    env_id = data["env_id"] if "env_id" in data else None
+    env = build_env(frozen.data)
+    config = build_config(['sh builder.sh'], True, environment=env_id, result_path="processed.json")
+    
+    return env, config
+
+def build_answer(data: dict) -> Tuple[dict, dict]:
     """
         Create the answer to evaluate in the sandbox.
 

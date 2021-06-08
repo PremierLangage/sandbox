@@ -1,14 +1,14 @@
 import json
 import io
-from django.test.utils import captured_output
 
 from rest_framework.response import Response
 from rest_framework import status, mixins, viewsets
+from rest_framework.request import Request
 
 from .serializers import FrozenSerializer
 from .models import FrozenResource
 from .enums import LoaderErrCode
-from .utils import build_answer, build_resource, data_to_hash, build_env, build_config, tar_from_dic
+from .utils import build_answer, build_resource, build_resource_demo, data_to_hash
 
 from sandbox.views import ExecuteView
 
@@ -30,7 +30,12 @@ class FrozenViewSet(
     def get_queryset(self):
         return FrozenResource.objects.all()
 
-    def get(self, request, id):
+    def get(self, request, id: int):
+        """
+            Return a specified FrozenResource
+
+            :param id:  The id of FrozenResource to return
+        """
         try:
             frozen = FrozenResource.objects.get(id=id)
             parents = [p.id for p in list(frozen.parent.all())]
@@ -38,7 +43,11 @@ class FrozenViewSet(
         except:
             return Response({"status":LoaderErrCode.NON_EXISTANT_FROZEN_RESOURCE})
 
-    def post(self, request):
+    def post(self, request: Request):
+        """
+            Load a Resource to the sandbox. Save it into a FrozenResource.
+            Return the id and the hash of the FrozenResource.
+        """
         return_status = status.HTTP_200_OK
         data = request.POST.get("data")
         if data is None:
@@ -78,13 +87,13 @@ class FrozenViewSet(
 class CallSandboxViewSet(
     viewsets.GenericViewSet
 ):
-    def _build_request(self, request, env, config):
-        request.FILES["environment"] = io.BytesIO(env)
+    def _build_request(self, request: Request, env: str, config: dict):
+        request._request.FILES["environment"] = io.BytesIO(env)
 
-        _mutable = request._request._post._mutable
-        request._request._post._mutable = True
-        request._request._post["config"] = config
-        request._request._post._mutable = _mutable
+        _mutable = request._request.POST._mutable
+        request._request.POST._mutable = True
+        request._request.POST["config"] = config
+        request._request.POST._mutable = _mutable
 
     def _get_data_from_frozen(self, data: dict):
         env_id = None
@@ -95,9 +104,9 @@ class CallSandboxViewSet(
             env_id = data["env_id"]
 
         frozen = FrozenResource.objects.get(id=int(data["resource_id"]))
-        return build_resource(data=frozen.data, env_id=env_id)
+        return build_resource_demo(data=frozen.data, env_id=env_id)
 
-    def play_demo(self, request):
+    def play_demo(self, request: Request):
         data = request.POST.get("data")
 
         if data is None:
@@ -107,17 +116,14 @@ class CallSandboxViewSet(
         except:
             return Response({"status":LoaderErrCode.DATA_NOT_VALID})
 
-        if "answer" in data and "env_id" in data:
-            env, config = build_answer(data=data)
-        else:
-            env, config = build_resource(data=data)
+        env, config = build_resource_demo(data=data)
 
         self._build_request(request, env=env, config=config)
 
         return Response(json.loads(ExecuteView.as_view()(request).content))
 
-    """
-    def play_exo(self, request):
+    
+    def play_exo(self, request: Request):
         data = request.POST.get("data")
         if data is None:
             return Response({"status":LoaderErrCode.DATA_NOT_PRESENT})
@@ -126,15 +132,15 @@ class CallSandboxViewSet(
         except:
             return Response({"status":LoaderErrCode.DATA_NOT_VALID})
 
-        if "answer" in data and "env_id" in data:
-            env, config = build_answer(data=data)
-        else:
-            env, config = self._get_data_from_frozen(data)
+        env, config = build_resource(data=data)
+
+        if env == None:
+            return Response({"status":LoaderErrCode.FROZEN_RESOURCE_ID_NOT_PRESENT})
 
         self._build_request(request, env=env, config=config)
 
         return Response(json.loads(ExecuteView.as_view()(request).content))
-    """
+    
         
         
         
