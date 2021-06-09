@@ -37,7 +37,6 @@ class FrozenTestCase(TestCase):
         frozen = response["frozen"]
         self.assertEqual(frozen["hash"], data_to_hash(self.data1))
         self.assertEqual(frozen["data"], self.data1)
-        self.assertEqual(frozen["parent"], [])
 
     def test_get_non_existant(self):
         response = self.client.get(reverse('api_server:frozen_get', args=[10]))
@@ -60,7 +59,6 @@ class FrozenTestCase(TestCase):
         frozen = response["frozen"]
         self.assertEqual(frozen["hash"], data_to_hash(self.data3))
         self.assertEqual(frozen["data"], self.data3)
-        self.assertEqual(frozen["parent"], [])
 
     def test_post_already_present(self):
         data = {"data":json.dumps(self.data1)}
@@ -87,7 +85,6 @@ class FrozenTestCase(TestCase):
 
         self.assertEqual(response["status"], 200)
         self.assertEqual(response["result"]["hash"], data_to_hash(self.data3))
-        self.assertEqual(response["result"]["parent"], str(self.frozen1.id))
         id = response["result"]["id"]
 
 
@@ -97,7 +94,6 @@ class FrozenTestCase(TestCase):
         frozen = response["frozen"]
         self.assertEqual(frozen["hash"], data_to_hash(self.data3))
         self.assertEqual(frozen["data"], self.data3)
-        self.assertEqual(frozen["parent"], [self.frozen1.id])
 
 
         response = self.client.get(reverse("api_server:frozen_get", args=[self.frozen1.id]))
@@ -106,7 +102,6 @@ class FrozenTestCase(TestCase):
         frozen = response["frozen"]
         self.assertEqual(frozen["hash"], data_to_hash(self.data1))
         self.assertEqual(frozen["data"], self.data1)
-        self.assertEqual(frozen["parent"], [])
         self.assertEqual(list(self.frozen1.frozenresource_set.all()), [FrozenResource.objects.get(id=id)])
 
     def test_post_with_wrong_parent(self):
@@ -114,7 +109,6 @@ class FrozenTestCase(TestCase):
         response = self.client.post(reverse("api_server:frozen_post"), data=data)
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], LoaderErrCode.NON_EXISTANT_PARENT)
-        self.assertEqual("id" in response["result"], False)
 
 
 class CallSandboxTestCase(TestCase):
