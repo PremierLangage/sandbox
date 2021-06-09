@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import json
+import time
 import tempfile
 import tarfile
 import os
 
-from hashlib import sha224
+from hashlib import sha1
 from typing import AnyStr, Tuple
 
 from .models import FrozenResource
@@ -14,11 +15,11 @@ from .components import components_source
 
 def data_to_hash(data: dict) -> str:
     """
-        Hash a data with sha224.
+        Hash a data with sha1.
 
         :param data: data to hash
     """
-    return sha224(str(data).encode()).hexdigest() 
+    return sha1(str(data).encode()).hexdigest() 
 
 
 def tar_from_dic(files: dict) -> AnyStr:
@@ -40,6 +41,17 @@ def tar_from_dic(files: dict) -> AnyStr:
             tar_stream = tar.read()
     
     return tar_stream
+
+def create_seed() -> int:
+    """Creates a seed between 0 and 99"""
+    return int(time.time() % 100)
+
+def build_pl(pl_data: dict, settings: dict = None, params: dict = None):
+    if params is not None:
+        pl_data = pl_data.update(params)
+
+    if "seed" not in pl_data:
+        pl_data["seed"] = create_seed()
 
 def build_env(pl_data: dict, answer: dict = None) -> AnyStr:
         """
@@ -96,7 +108,13 @@ def build_resource_demo(data: dict) -> Tuple[dict, dict]:
     """
     if "answer" in data and "env_id" in data:
             return build_answer(data=data)
-    env_id = data["env_id"] if "env_id" in data else None
+    
+    build_pl(data)
+    if "env_id" in data:
+        env_id = data["env_id"]
+        del data["env_id"]
+    else:
+        env_id = None
     env = build_env(data)
     config = build_config(['sh builder.sh'], True, environment=env_id, result_path="processed.json")
     
@@ -115,8 +133,14 @@ def build_resource(data: dict) -> Tuple[dict, dict]:
         return None, None
 
     frozen = FrozenResource.objects.get(id=int(data["resource_id"]))
-    env_id = data["env_id"] if "env_id" in data else None
-    env = build_env(frozen.data)
+    frozen_data = frozen.data
+    build_pl(frozen_data)
+    if "env_id" in data:
+        env_id = data["env_id"]
+        del data["env_id"]
+    else:
+        env_id = None
+    env = build_env(frozen_data)
     config = build_config(['sh builder.sh'], True, environment=env_id, result_path="processed.json")
     
     return env, config

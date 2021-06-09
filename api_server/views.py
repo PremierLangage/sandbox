@@ -8,7 +8,7 @@ from rest_framework.request import Request
 from .serializers import FrozenSerializer
 from .models import FrozenResource
 from .enums import LoaderErrCode
-from .utils import build_answer, build_resource, build_resource_demo, data_to_hash
+from .utils import build_resource, build_resource_demo, data_to_hash
 
 from sandbox.views import ExecuteView
 
@@ -66,8 +66,8 @@ class FrozenViewSet(
             frozen = FrozenResource.objects.create(hash=hash, data=data)
 
         result = {
-            "hash":hash,
             "id":frozen.pk,
+            "hash":hash,
         }
         parent = request.POST.get("parent")
         if parent is not None:
@@ -75,18 +75,13 @@ class FrozenViewSet(
                 parent_frozen = FrozenResource.objects.get(id=parent)
                 frozen.parent.add(parent_frozen)
                 frozen.save()
-                result["parent"] = parent
             except:
                 frozen.delete()
-                del result["id"]
-                return_status = LoaderErrCode.NON_EXISTANT_PARENT
+                return Response({"status":LoaderErrCode.NON_EXISTANT_PARENT})
         return Response({"status":return_status, "result":result})
 
     
-        
-class CallSandboxViewSet(
-    viewsets.GenericViewSet
-):
+class CallSandboxViewSet(viewsets.GenericViewSet):
     def _build_request(self, request: Request, env: str, config: dict):
         request._request.FILES["environment"] = io.BytesIO(env)
 
@@ -94,17 +89,6 @@ class CallSandboxViewSet(
         request._request.POST._mutable = True
         request._request.POST["config"] = config
         request._request.POST._mutable = _mutable
-
-    def _get_data_from_frozen(self, data: dict):
-        env_id = None
-        if "resource_id" not in data:
-            return Response()
-
-        if "env_id" in data:
-            env_id = data["env_id"]
-
-        frozen = FrozenResource.objects.get(id=int(data["resource_id"]))
-        return build_resource_demo(data=frozen.data, env_id=env_id)
 
     def play_demo(self, request: Request):
         data = request.POST.get("data")
@@ -121,7 +105,6 @@ class CallSandboxViewSet(
         self._build_request(request, env=env, config=config)
 
         return Response(json.loads(ExecuteView.as_view()(request).content))
-
     
     def play_exo(self, request: Request):
         data = request.POST.get("data")

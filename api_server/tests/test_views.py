@@ -2,8 +2,6 @@ from api_server.models import FrozenResource
 from django.test import TestCase
 from django.urls import reverse
 
-from sandbox.tests.utils import SandboxTestCase
-
 from api_server.utils import data_to_hash
 from api_server.enums import LoaderErrCode
 
@@ -11,7 +9,6 @@ from sandbox.containers import initialise_containers, purging_containers
 
 import json
 import os
-import aiohttp
 
 TEST_DATA_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_data")
 
@@ -133,6 +130,9 @@ class CallSandboxTestCase(TestCase):
         purging_containers()
         super().tearDown()
 
+    """
+    Tests Play Demo
+    """
     def test_play_demo(self):
         data = {"data": json.dumps(self.pl_data)}
         
@@ -169,6 +169,10 @@ class CallSandboxTestCase(TestCase):
 
         self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_VALID)
 
+
+    """
+    Tests Play Exo
+    """
     def test_play_exo(self):
         data = {"data": json.dumps(self.pl_data)}
 
@@ -192,3 +196,20 @@ class CallSandboxTestCase(TestCase):
 
         self.assertEqual(response["status"], 0)
         self.assertEqual(response["execution"][0]["stdout"], "100")
+
+    def test_play_exo_data_not_present(self):
+        data = {"wrong": json.dumps(self.pl_data)}
+        
+        response = self.client.post(reverse("api_server:play_exo"), data=data)
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_PRESENT)
+
+    def test_play_exo_data_not_valid(self):
+        data = {"data": self.pl_data}
+        
+        response = self.client.post(reverse("api_server:play_exo"), data=data)
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_VALID)
+
