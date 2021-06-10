@@ -6,6 +6,7 @@ from api_server.utils import data_to_hash
 from api_server.enums import LoaderErrCode
 
 from sandbox.containers import initialise_containers, purging_containers
+from sandbox.tests.utils import SandboxTestCase
 
 import json
 import os
@@ -207,3 +208,14 @@ class CallSandboxTestCase(TestCase):
 
         self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_VALID)
 
+    def test_play_exo_without_resource_id(self):        
+        response = self.client.post(reverse("api_server:play_exo"), data={"data":json.dumps({})})
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], LoaderErrCode.FROZEN_RESOURCE_ID_NOT_PRESENT)
+    
+    def test_play_exo_with_wrong_resource_id(self):        
+        response = self.client.post(reverse("api_server:play_exo"), data={"data":json.dumps({"resource_id": 100})})
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], LoaderErrCode.FROZEN_RESOURCE_ID_NOT_IN_DB)
