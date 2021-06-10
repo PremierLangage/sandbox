@@ -117,8 +117,8 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
 
         env, config = build_resource(data=data)
 
-        if env == None:
-            return Response({"status":LoaderErrCode.FROZEN_RESOURCE_ID_NOT_PRESENT})
+        if config == None:
+            return Response({"status":env})
 
         self._build_request(request, env=env, config=config)
 

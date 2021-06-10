@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from api_server.enums import LoaderErrCode
 import json
 import time
 import tempfile
@@ -107,7 +108,7 @@ def build_resource_demo(data: dict) -> Tuple[dict, dict]:
         :param data:    data to send to sandbox
     """
     if "answer" in data and "env_id" in data:
-            return build_answer(data=data)
+        return build_answer(data=data)
     
     build_pl(data)
     if "env_id" in data:
@@ -120,7 +121,7 @@ def build_resource_demo(data: dict) -> Tuple[dict, dict]:
     
     return env, config
 
-def build_resource(data: dict) -> Tuple[dict, dict]:
+def build_resource(data: dict):
     """
         Create resources to build in the sandbox.
 
@@ -130,9 +131,12 @@ def build_resource(data: dict) -> Tuple[dict, dict]:
         return build_answer(data=data)
 
     if "resource_id" not in data:
-        return None, None
+        return LoaderErrCode.FROZEN_RESOURCE_ID_NOT_PRESENT, None
 
-    frozen = FrozenResource.objects.get(id=int(data["resource_id"]))
+    try:
+        frozen = FrozenResource.objects.get(id=int(data["resource_id"]))
+    except:
+        return LoaderErrCode.FROZEN_RESOURCE_ID_NOT_IN_DB, None
     frozen_data = frozen.data
     build_pl(frozen_data)
     if "env_id" in data:
