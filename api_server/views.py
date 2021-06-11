@@ -1,14 +1,15 @@
 import json
-import io
 
 from rest_framework.response import Response
 from rest_framework import status, mixins, viewsets
 from rest_framework.request import Request
 
+from json.decoder import JSONDecodeError
+
 from .serializers import FrozenSerializer
 from .models import FrozenResource
 from .enums import LoaderErrCode
-from .utils import build_resource, build_resource_demo, data_to_hash
+from .utils import data_to_hash, build_resource, build_request
 
 from sandbox.views import ExecuteView
 
@@ -56,14 +57,12 @@ class FrozenViewSet(
         try:
             data = json.loads(data)
             hash = data_to_hash(data)
-        except:
+        except JSONDecodeError:
             return Response({"status":LoaderErrCode.DATA_NOT_VALID})
 
-        try:
-            frozen = FrozenResource.objects.get(hash=hash)
+        frozen, created = FrozenResource.objects.get_or_create(hash=hash, data=data)
+        if not created:
             return_status = LoaderErrCode.FROZEN_RESOURCE_ALREADY_PRESENT
-        except:
-            frozen = FrozenResource.objects.create(hash=hash, data=data)
 
         result = {
             "id":frozen.pk,
@@ -80,17 +79,9 @@ class FrozenViewSet(
                 return Response({"status":LoaderErrCode.NON_EXISTANT_PARENT})
         return Response({"status":return_status, "result":result})
 
-    
+
 class CallSandboxViewSet(viewsets.GenericViewSet):
-    def _build_request(self, request: Request, env: str, config: dict):
-        request._request.FILES["environment"] = io.BytesIO(env)
-
-        _mutable = request._request.POST._mutable
-        request._request.POST._mutable = True
-        request._request.POST["config"] = config
-        request._request.POST._mutable = _mutable
-
-    def play_demo(self, request: Request):
+    def _play(self, request: Request, is_demo: bool):
         data = request.POST.get("data")
 
         if data is None:
@@ -100,29 +91,20 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
         except:
             return Response({"status":LoaderErrCode.DATA_NOT_VALID})
 
-        env, config = build_resource_demo(data=data)
-
-        self._build_request(request, env=env, config=config)
-
-        return Response(json.loads(ExecuteView.as_view()(request).content))
-    
-    def play_exo(self, request: Request):
-        data = request.POST.get("data")
-        if data is None:
-            return Response({"status":LoaderErrCode.DATA_NOT_PRESENT})
-        try:
-            data = json.loads(data)
-        except:
-            return Response({"status":LoaderErrCode.DATA_NOT_VALID})
-
-        env, config = build_resource(data=data)
+        env, config = build_resource(data, is_demo)
 
         if config == None:
             return Response({"status":env})
 
-        self._build_request(request, env=env, config=config)
+        build_request(request, env=env, config=config)
 
         return Response(json.loads(ExecuteView.as_view()(request).content))
+
+    def play_demo(self, request: Request):
+        return self._play(request, is_demo=True)
+    
+    def play_exo(self, request: Request):
+        return self._play(request, is_demo=False)
     
         
         

@@ -6,7 +6,6 @@ from api_server.utils import data_to_hash
 from api_server.enums import LoaderErrCode
 
 from sandbox.containers import initialise_containers, purging_containers
-from sandbox.tests.utils import SandboxTestCase
 
 import json
 import os
@@ -66,7 +65,7 @@ class FrozenTestCase(TestCase):
         response = self.client.post(reverse("api_server:frozen_post"), data=data)
         response = json.loads(response.content.decode())
 
-        self.assertEqual(response["status"], -1)
+        self.assertEqual(response["status"], LoaderErrCode.FROZEN_RESOURCE_ALREADY_PRESENT)
         self.assertEqual(response["result"]["hash"], data_to_hash(self.data1))
 
     def test_post_without_data(self):
@@ -117,6 +116,7 @@ class CallSandboxTestCase(TestCase):
         with open(os.path.join(TEST_DATA_ROOT, "basic_pl.json")) as f:
             self.pl_data = json.load(f)
 
+        purging_containers()
         initialise_containers()
         super().setUp()
 
