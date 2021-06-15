@@ -40,8 +40,7 @@ class FrozenViewSet(
         """
         try:
             frozen = FrozenResource.objects.get(id=id)
-            parents = [p.id for p in list(frozen.parent.all())]
-            return Response({"status":status.HTTP_200_OK, "frozen":{"id":frozen.pk, "hash":frozen.hash,"data":frozen.data,"parent":parents}})
+            return Response({"status":status.HTTP_200_OK, "frozen":{"id":frozen.pk, "hash":frozen.hash,"data":frozen.data}})
         except:
             return Response({"status":LoaderErrCode.NON_EXISTANT_FROZEN_RESOURCE})
 
@@ -50,7 +49,6 @@ class FrozenViewSet(
             Load a Resource to the sandbox. Save it into a FrozenResource.
             Return the id and the hash of the FrozenResource.
         """
-        return_status = status.HTTP_200_OK
         data = request.POST.get("data")
         if data is None:
             return Response({"status":LoaderErrCode.DATA_NOT_PRESENT})
@@ -62,23 +60,16 @@ class FrozenViewSet(
             return Response({"status":LoaderErrCode.DATA_NOT_VALID})
 
         frozen, created = FrozenResource.objects.get_or_create(hash=hash, data=data)
-        if not created:
-            return_status = LoaderErrCode.FROZEN_RESOURCE_ALREADY_PRESENT
 
         result = {
             "id":frozen.pk,
             "hash":hash,
         }
-        parent = request.POST.get("parent")
-        if parent is not None:
-            try:
-                parent_frozen = FrozenResource.objects.get(id=parent)
-                frozen.parent.add(parent_frozen)
-                frozen.save()
-            except:
-                frozen.delete()
-                return Response({"status":LoaderErrCode.NON_EXISTANT_PARENT})
-        return Response({"status":return_status, "result":result})
+
+        if not created:
+            return Response({"status":LoaderErrCode.FROZEN_RESOURCE_ALREADY_PRESENT, "result":result})
+        
+        return Response({"status":status.HTTP_200_OK, "result":result})
 
 
 class CallSandboxViewSet(viewsets.GenericViewSet):
@@ -89,7 +80,7 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
             return Response({"status":LoaderErrCode.DATA_NOT_PRESENT})
         try:
             data = json.loads(data)
-        except:
+        except JSONDecodeError:
             return Response({"status":LoaderErrCode.DATA_NOT_VALID})
 
         env, config = build_resource(data, is_demo)
