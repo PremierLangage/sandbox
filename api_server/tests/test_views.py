@@ -78,38 +78,6 @@ class FrozenTestCase(TestCase):
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_VALID)
 
-    def test_post_with_parent(self):
-        data = {"data":json.dumps(self.data3), "parent":self.frozen1.id}
-        response = self.client.post(reverse("api_server:frozen_post"), data=data)
-        response = json.loads(response.content.decode())
-
-        self.assertEqual(response["status"], 200)
-        self.assertEqual(response["result"]["hash"], data_to_hash(self.data3))
-        id = response["result"]["id"]
-
-
-        response = self.client.get(reverse("api_server:frozen_get", args=[response["result"]["id"]]))
-        response = json.loads(response.content.decode())
-        self.assertEqual(response["status"], 200)
-        frozen = response["frozen"]
-        self.assertEqual(frozen["hash"], data_to_hash(self.data3))
-        self.assertEqual(frozen["data"], self.data3)
-
-
-        response = self.client.get(reverse("api_server:frozen_get", args=[self.frozen1.id]))
-        response = json.loads(response.content.decode())
-        self.assertEqual(response["status"], 200)
-        frozen = response["frozen"]
-        self.assertEqual(frozen["hash"], data_to_hash(self.data1))
-        self.assertEqual(frozen["data"], self.data1)
-        self.assertEqual(list(self.frozen1.frozenresource_set.all()), [FrozenResource.objects.get(id=id)])
-
-    def test_post_with_wrong_parent(self):
-        data = {"data":json.dumps(self.data3), "parent":0}
-        response = self.client.post(reverse("api_server:frozen_post"), data=data)
-        response = json.loads(response.content.decode())
-        self.assertEqual(response["status"], LoaderErrCode.NON_EXISTANT_PARENT)
-
 
 class CallSandboxTestCase(TestCase):
     def setUp(self) -> None:
