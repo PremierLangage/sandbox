@@ -125,14 +125,24 @@ def executed_env(request: HttpRequest, config: dict) -> str:
         sandbox_env.close()
     
     uuid_env = str(uuid.uuid4())
-    path = os.path.join(settings.ENVIRONMENT_ROOT, f"{uuid_env}.tgz")
+    env_path = request.POST.get("path")
+    if env_path is None:
+        path = f"{uuid_env}.tgz"
+        ret = f"{uuid_env}"
+    else:
+        ret = os.path.join(env_path, f"{uuid_env}")
+        path = os.path.join(settings.ENVIRONMENT_ROOT, env_path)
+        if not os.path.exists(path):
+            os.makedirs(path)
+        path = os.path.join(path, f"{uuid_env}.tgz")
+    path = os.path.join(settings.ENVIRONMENT_ROOT, path)
     if env is not None:
         with open(path, "w+b") as f:
             f.write(env.read())
     else:
         tarfile.open(path, "x:gz").close()
     
-    return uuid_env
+    return ret
 
 
 def parse_environ(config: dict) -> dict:

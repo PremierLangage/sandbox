@@ -82,13 +82,14 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
             data = json.loads(data)
         except JSONDecodeError:
             return Response({"status":LoaderErrCode.DATA_NOT_VALID})
-
-        env, config = build_resource(data, is_demo)
+        
+        path = request.data.get("path")
+        env, config = build_resource(data, is_demo, path)
 
         if config == None:
             return Response({"status":env})
 
-        build_request(request, env=env, config=config)
+        build_request(request, env=env, config=config, path=path)
 
         return Response(json.loads(ExecuteView.as_view()(request).content))
 

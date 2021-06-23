@@ -8,10 +8,10 @@ import tarfile
 import os
 import io
 
-from rest_framework.request import Request
-
 from hashlib import sha1
 from typing import AnyStr, Tuple
+
+from rest_framework.request import Request
 
 from .models import FrozenResource
 from .components import components_source
@@ -24,7 +24,6 @@ def data_to_hash(data: dict) -> str:
         :param data: data to hash
     """
     return sha1(str(data).encode()).hexdigest() 
-
 
 def tar_from_dic(files: dict) -> AnyStr:
     """
@@ -109,7 +108,7 @@ def build_config(list_commands: list, save: bool, environment: str=None, result_
         commands["result_path"] = result_path
     return json.dumps(commands)
 
-def build_resource(data: dict, is_demo: bool):
+def build_resource(data: dict, is_demo: bool, path: str):
     """
         Create resources to build in the sandbox.
 
@@ -133,6 +132,11 @@ def build_resource(data: dict, is_demo: bool):
 
     build_pl(data)
     env = build_env(data)
+    if path is not None and env_id is not None:
+        print(f"PATH : {path}")
+        print(f"TYPE : {type(path)}")
+        env_id = os.path.join(path, env_id)
+
     config = build_config(['sh builder.sh'], True, environment=env_id, result_path="processed.json")
 
     return env, config
@@ -151,10 +155,11 @@ def build_answer(data: dict) -> Tuple[dict, dict]:
     return env, config
 
 
-def build_request(request: Request, env: str, config: dict):
+def build_request(request: Request, env: str, config: dict, path: str):
     request._request.FILES["environment"] = io.BytesIO(env)
 
     _mutable = request._request.POST._mutable
     request._request.POST._mutable = True
     request._request.POST["config"] = config
+    request._request.POST["path"] = path
     request._request.POST._mutable = _mutable
