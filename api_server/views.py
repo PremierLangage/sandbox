@@ -84,7 +84,7 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
             return Response({"status":LoaderErrCode.DATA_NOT_VALID})
         
         path = request.data.get("path")
-        env, config = build_resource(data, is_demo, path)
+        env, config = build_resource(request, data, is_demo, path)
 
         if config == None:
             return Response({"status":env})
