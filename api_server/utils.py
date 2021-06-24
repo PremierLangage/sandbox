@@ -53,10 +53,10 @@ def create_seed() -> int:
 
 def build_pl(pl_data: dict, settings: dict = None, params: dict = None):
     if params is not None:
-        pl_data = pl_data.update(params)
+        pl_data.update(params)
 
     if settings is not None:
-        pl_data = pl_data.update(settings)
+        pl_data.update(settings)
 
     if "seed" not in pl_data:
         pl_data["seed"] = create_seed()
@@ -108,7 +108,7 @@ def build_config(list_commands: list, save: bool, environment: str=None, result_
         commands["result_path"] = result_path
     return json.dumps(commands)
 
-def build_resource(data: dict, is_demo: bool, path: str):
+def build_resource(request: Request, data: dict, is_demo: bool, path: str):
     """
         Create resources to build in the sandbox.
 
@@ -130,11 +130,9 @@ def build_resource(data: dict, is_demo: bool, path: str):
         except:
             return LoaderErrCode.FROZEN_RESOURCE_ID_NOT_IN_DB, None
 
-    build_pl(data)
+    build_pl(pl_data=data, settings=request.data.get("settings"), params=request.data.get("params"))
     env = build_env(data)
     if path is not None and env_id is not None:
-        print(f"PATH : {path}")
-        print(f"TYPE : {type(path)}")
         env_id = os.path.join(path, env_id)
 
     config = build_config(['sh builder.sh'], True, environment=env_id, result_path="processed.json")
