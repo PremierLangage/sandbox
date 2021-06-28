@@ -123,21 +123,22 @@ def build_resource(request: Request, data: dict, is_demo: bool, path: str):
     
     if not is_demo:
         if "resource_id" not in data:
-            return LoaderErrCode.FROZEN_RESOURCE_ID_NOT_PRESENT, None
+            return LoaderErrCode.FROZEN_RESOURCE_ID_NOT_PRESENT
         try:
             frozen = FrozenResource.objects.get(id=int(data["resource_id"]))
             data = frozen.data
         except:
-            return LoaderErrCode.FROZEN_RESOURCE_ID_NOT_IN_DB, None
+            return LoaderErrCode.FROZEN_RESOURCE_ID_NOT_IN_DB
 
     build_pl(pl_data=data, settings=request.data.get("settings"), params=request.data.get("params"))
     env = build_env(data)
+    
     if path is not None and env_id is not None:
         env_id = os.path.join(path, env_id)
 
     config = build_config(['sh builder.sh'], True, environment=env_id, result_path="processed.json")
 
-    return env, config
+    return (env, config)
 
 def build_answer(data: dict) -> Tuple[dict, dict]:
     """
@@ -150,7 +151,7 @@ def build_answer(data: dict) -> Tuple[dict, dict]:
     env = tar_from_dic({"answers.json":json.dumps(answer)})
     config = build_config(['sh grader.sh'], True, environment=env_id, result_path="feedback.html")
 
-    return env, config
+    return (env, config)
 
 
 def build_request(request: Request, env: str, config: dict, path: str):

@@ -1,5 +1,4 @@
 import json
-from typing import Tuple
 
 from rest_framework.response import Response
 from rest_framework import status, mixins, viewsets
@@ -74,7 +73,7 @@ class FrozenViewSet(
 
 class CallSandboxViewSet(viewsets.GenericViewSet):
     def _play(self, request: Request, is_demo: bool):
-        data = request.POST.get("data")
+        data = request.data.get("data")
 
         if data is None:
             return Response({"status":LoaderErrCode.DATA_NOT_PRESENT})
@@ -84,10 +83,13 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
             return Response({"status":LoaderErrCode.DATA_NOT_VALID})
         
         path = request.data.get("path")
-        env, config = build_resource(request, data, is_demo, path)
+        
+        ret = build_resource(request, data, is_demo, path)
 
-        if config == None:
-            return Response({"status":env})
+        if isinstance(ret, LoaderErrCode):
+            return Response({"status":ret})
+
+        env, config = ret
 
         build_request(request, env=env, config=config, path=path)
 
