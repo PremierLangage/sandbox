@@ -105,7 +105,6 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
     def _build_act(self, frozen_id):
         try:
             frozen = FrozenResource.objects.get(id=int(frozen_id))
-            data = frozen.data
         except:
             return Response({
                 "status":LoaderErrCode.FROZEN_RESOURCE_ID_NOT_IN_DB,
@@ -135,7 +134,7 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
         path_command = request.data.get("path_command")
         command = request.data.getlist("command")
         frozen_id = request.data.get("frozen_resource_id")
-        result = request.data.get("result")
+        answer = request.data.get("answer")
         env_id = request.data.get("env_id")
         path_env = request.data.get("path_env")
 
@@ -150,14 +149,14 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
         if frozen_id is not None:
             files.update(self._build_act(frozen_id))
 
-        if result is not None:
-            files.update({"answer":json.dumps(result)})
+        if answer is not None:
+            rep = path_command.rsplit("/", 1)[1]
+            files.update({f"{rep}/answers.json":answer})
 
         commands = [f'cd {path_command}']
-        for i in range(len(command)):
-            files[str(i) + ".sh"] = command[i]
-            commands.append(f'sh {str(i)}.sh')
-
+        for i in command:
+            commands.append(i)
+        commands = [' && '.join(commands)]
         config = build_config(list_commands=commands, save=True, environment=env_id)
         env = tar_from_dic(files=files)
 
