@@ -137,6 +137,7 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
         answer = request.data.get("answer")
         env_id = request.data.get("env_id")
         path_env = request.data.get("path_env")
+        result = request.data.get("result")
 
         if path_command is None:
             return Response({"status":CallSandboxErrCode.PATH_COMMAND_NOT_PRESENT, "stderr":"path_command is not present"})
@@ -150,14 +151,13 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
             files.update(self._build_act(frozen_id))
 
         if answer is not None:
-            rep = path_command.rsplit("/", 1)[1]
-            files.update({f"{rep}/answers.json":answer})
+            files.update({f"{path_command}/answers.json":answer})
 
         commands = [f'cd {path_command}']
         for i in command:
             commands.append(i)
         commands = [' && '.join(commands)]
-        config = build_config(list_commands=commands, save=True, environment=env_id)
+        config = build_config(list_commands=commands, save=True, environment=env_id, result_path=result)
         env = tar_from_dic(files=files)
 
         build_request(request=request, post={"config":config, "path":path_env}, env=env)
