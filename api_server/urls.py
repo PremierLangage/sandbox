@@ -9,4 +9,5 @@ urlpatterns = [
    path('loader/fr/', views.FrozenViewSet.as_view({'post':'post'}), name='frozen_post'),
    path('loader/demo/pl/', views.CallSandboxViewSet.as_view({'post':'play_demo'}), name='play_demo'),
    path('loader/play/pl/', views.CallSandboxViewSet.as_view({'post':'play_exo'}), name='play_exo'),
+   path('api/server/exec/', views.CallSandboxViewSet.as_view({'post':'execute'}), name='execute'),
 ]

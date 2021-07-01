@@ -35,6 +35,11 @@ def tar_from_dic(files: dict) -> AnyStr:
     with tempfile.TemporaryDirectory() as tmp_dir, tempfile.TemporaryDirectory() as env_dir:
         with tarfile.open(tmp_dir + "/environment.tgz", "w:gz") as tar:
             for key in files:
+                if "/" in key:
+                    directory = key.rsplit("/", 1)[0]
+                    directory = os.path.join(env_dir, directory)
+                    if not os.path.exists(directory):
+                        os.makedirs(directory)
                 with open(os.path.join(env_dir, key), "w") as f:
                     print(files[key], file=f)
             
@@ -51,7 +56,7 @@ def create_seed() -> int:
     """
     return int(time.time() % 100)
 
-def build_pl(pl_data: dict, settings: dict = None, params: dict = None):
+def build_pl(pl_data: dict, settings: dict = None, params: dict = None) -> None:
     if params is not None:
         pl_data.update(params)
 
@@ -60,6 +65,32 @@ def build_pl(pl_data: dict, settings: dict = None, params: dict = None):
 
     if "seed" not in pl_data:
         pl_data["seed"] = create_seed()
+
+def build_env_act(pl_data: dict, path: str = None):
+    env = dict(pl_data['__files'])
+    env["components.py"] = components_source()
+    
+    tmp = dict(pl_data)
+    del tmp['__files']
+    env['pl.json'] = json.dumps(tmp)
+
+    env['builder.sh'] = "#!/usr/bin/env bash\npython3 builder.py pl.json processed.json 2> stderr.log"
+    env['grader.sh'] = "#!/usr/bin/env bash\npython3 grader.py pl.json answers.json processed.json feedback.html 2> stderr.log"
+    
+    if 'grader' in pl_data and 'grader.py' not in env:
+        env['grader.py'] = pl_data['grader']
+    
+    if 'builder' in pl_data and 'builder.py' not in env:
+        env['builder.py'] = pl_data['builder']
+
+    if path is not None:
+        keys = list(env.keys())
+        for key in keys:
+            env[path+key] = env[key]
+            del env[key]
+                
+
+    return env
 
 def build_env(pl_data: dict, answer: dict = None) -> AnyStr:
     """
@@ -108,7 +139,7 @@ def build_config(list_commands: list, save: bool, environment: str=None, result_
         commands["result_path"] = result_path
     return json.dumps(commands)
 
-def build_resource(request: Request, data: dict, is_demo: bool, path: str):
+def build_resource(request: Request, data: dict, is_demo: bool, path: str) -> Tuple[dict, dict]:
     """
         Create resources to build in the sandbox.
 
@@ -154,11 +185,12 @@ def build_answer(data: dict) -> Tuple[dict, dict]:
     return (env, config)
 
 
-def build_request(request: Request, env: str, config: dict, path: str):
-    request._request.FILES["environment"] = io.BytesIO(env)
+def build_request(request: Request, post: dict, env: str = None) -> None:
+    if env is not None:
+        request._request.FILES["environment"] = io.BytesIO(env)
 
     _mutable = request._request.POST._mutable
     request._request.POST._mutable = True
-    request._request.POST["config"] = config
-    request._request.POST["path"] = path
+    for key in post:
+        request._request.POST[key] = post[key]
     request._request.POST._mutable = _mutable

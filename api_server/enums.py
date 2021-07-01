@@ -9,3 +9,7 @@ class LoaderErrCode(IntEnum):
     FROZEN_RESOURCE_ID_NOT_PRESENT  = -5,
     FROZEN_RESOURCE_ID_NOT_IN_DB    = -6,
     
+@unique
+class CallSandboxErrCode(IntEnum):
+    PATH_COMMAND_NOT_PRESENT = -1,
+    COMMAND_NOT_PRESENT = -2,
