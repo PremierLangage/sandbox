@@ -105,26 +105,27 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
     def _build_act(self, frozen_id):
         try:
             frozen = FrozenResource.objects.get(id=int(frozen_id))
+            data_activity = frozen.data
         except:
             return Response({
                 "status":LoaderErrCode.FROZEN_RESOURCE_ID_NOT_IN_DB,
                 "stderr":f"The id : {frozen_id} do not correspond to a FrozenResource"
             })
         files = dict()
-        data_activity = frozen.data
         if "__files" in data_activity:
             for f in data_activity["__files"]:
                 files[f] = data_activity["__files"][f]
-        files["output.json"] = ""
-        files["result.json"] = ""
         for pl in data_activity["lst_exos"]:
             try:
                 frozen = FrozenResource.objects.get(id=int(pl))
                 pl_data = frozen.data
             except:
-                return Response({"status":LoaderErrCode.FROZEN_RESOURCE_ID_NOT_IN_DB})
+                return Response({
+                    "status":LoaderErrCode.FROZEN_RESOURCE_ID_NOT_IN_DB,
+                    "stderr":f"The id : {frozen_id} do not correspond to a FrozenResource"
+                })
             files[str(pl)+".json"] = pl_data
-            files.update(build_env_act(pl_data, path=str(pl)+"/"))
+            files.update(build_env_act(pl_data, path=os.path.join(str(pl),"")))
         
         data_activity["current"] = 0
         files["activity.json"] = json.dumps(data_activity)

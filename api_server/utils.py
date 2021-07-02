@@ -73,9 +73,6 @@ def build_env_act(pl_data: dict, path: str = None):
     tmp = dict(pl_data)
     del tmp['__files']
     env['pl.json'] = json.dumps(tmp)
-
-    env['builder.sh'] = "#!/usr/bin/env bash\npython3 builder.py pl.json processed.json 2> stderr.log"
-    env['grader.sh'] = "#!/usr/bin/env bash\npython3 grader.py pl.json answers.json processed.json feedback.html 2> stderr.log"
     
     if 'grader' in pl_data and 'grader.py' not in env:
         env['grader.py'] = pl_data['grader']
@@ -89,7 +86,6 @@ def build_env_act(pl_data: dict, path: str = None):
             env[path+key] = env[key]
             del env[key]
                 
-
     return env
 
 def build_env(pl_data: dict, answer: dict = None) -> AnyStr:
