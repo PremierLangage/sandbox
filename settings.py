@@ -32,7 +32,7 @@ DEBUG = False
 # Set to true when 'python3 manage.py test' is used
 TESTING = sys.argv[1:2] == ['test']
 
-ALLOWED_HOSTS = ['127.0.0.1']
+ALLOWED_HOSTS = ['*']
 
 # Application definition
 INSTALLED_APPS = [
