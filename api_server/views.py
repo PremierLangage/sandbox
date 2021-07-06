@@ -1,6 +1,8 @@
 import json
 import os
 
+from django.core.exceptions import ObjectDoesNotExist
+
 from rest_framework.response import Response
 from rest_framework import status, mixins, viewsets
 from rest_framework.request import Request
@@ -10,7 +12,7 @@ from json.decoder import JSONDecodeError
 from .serializers import FrozenSerializer
 from .models import FrozenResource
 from .enums import CallSandboxErrCode, LoaderErrCode
-from .utils import build_config, build_env_act, data_to_hash, build_resource, build_request, tar_from_dic
+from .utils import build_config, build_env, data_to_hash, build_resource, build_request, tar_from_dic
 
 from sandbox.views import ExecuteView
 
@@ -73,7 +75,7 @@ class FrozenViewSet(
 
 
 class CallSandboxViewSet(viewsets.GenericViewSet):
-    def _play(self, request: Request, is_demo: bool):
+    def play_demo(self, request: Request):
         data = request.data.get("data")
 
         if data is None:
@@ -85,32 +87,19 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
         
         path = request.data.get("path")
         
-        ret = build_resource(request, data, is_demo, path)
-
-        if isinstance(ret, LoaderErrCode):
-            return Response({"status":ret})
-
-        env, config = ret
+        env, config = build_resource(request, data, path)
 
         build_request(request, env=env, post={"config":config, "path":path})
 
         return Response(json.loads(ExecuteView.as_view()(request).content))
-
-    def play_demo(self, request: Request):
-        return self._play(request, is_demo=True)
-    
-    def play_exo(self, request: Request):
-        return self._play(request, is_demo=False)
     
     def _build_act(self, frozen_id):
         try:
             frozen = FrozenResource.objects.get(id=int(frozen_id))
             data_activity = frozen.data
-        except:
-            return Response({
-                "status":LoaderErrCode.FROZEN_RESOURCE_ID_NOT_IN_DB,
-                "stderr":f"The id : {frozen_id} do not correspond to a FrozenResource"
-            })
+        except ObjectDoesNotExist as odne:
+            raise odne
+            
         files = dict()
         if "__files" in data_activity:
             for f in data_activity["__files"]:
@@ -119,13 +108,10 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
             try:
                 frozen = FrozenResource.objects.get(id=int(pl))
                 pl_data = frozen.data
-            except:
-                return Response({
-                    "status":LoaderErrCode.FROZEN_RESOURCE_ID_NOT_IN_DB,
-                    "stderr":f"The id : {frozen_id} do not correspond to a FrozenResource"
-                })
+            except ObjectDoesNotExist as odne:
+                raise odne
             files[str(pl)+".json"] = pl_data
-            files.update(build_env_act(pl_data, path=os.path.join(str(pl),"")))
+            files.update(build_env(pl_data, path=os.path.join(str(pl),"")))
         
         data_activity["current"] = 0
         files["activity.json"] = json.dumps(data_activity)
@@ -143,27 +129,28 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
         if path_command is None:
             return Response({"status":CallSandboxErrCode.PATH_COMMAND_NOT_PRESENT, "stderr":"path_command is not present"})
 
-        if command is None:
+        if len(command) == 0:
             return Response({"status":CallSandboxErrCode.COMMAND_NOT_PRESENT, "stderr":"command is not present"})
 
         files = dict()
 
         if frozen_id is not None:
-            files.update(self._build_act(frozen_id))
-
+            try:
+                pl_files = self._build_act(frozen_id)
+                files.update(pl_files)
+            except ObjectDoesNotExist:
+                return Response({
+                    "status":CallSandboxErrCode.INVALID_FROZEN_RESOURCE_ID,
+                    "stderr":f"The id : {frozen_id} do not correspond to a FrozenResource"
+                })
+        
         if answer is not None:
             files.update({f"{path_command}/answers.json":answer})
 
-        commands = [f'cd {path_command}']
-        for i in command:
-            commands.append(i)
-        commands = [' && '.join(commands)]
+        commands = [' && '.join([f'cd {path_command}'] + command)]
         config = build_config(list_commands=commands, save=True, environment=env_id, result_path=result)
         env = tar_from_dic(files=files)
 
         build_request(request=request, post={"config":config, "path":path_env}, env=env)
         
-        response = json.loads(ExecuteView.as_view()(request).content)
-
-        return Response(response)
-        
+        return Response(json.loads(ExecuteView.as_view()(request).content))
