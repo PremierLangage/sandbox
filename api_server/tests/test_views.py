@@ -256,6 +256,7 @@ class PlayActivityTestCase(CallSandboxTestCase):
             "path_command":".",
             "command":["python3 start.py activity.json output.json result.json"],
             "frozen_resource_id":id,
+            "result": "result.json"
         }
         response = self.client.post(
             reverse("api_server:execute"),
@@ -437,8 +438,6 @@ class PlayActivityTestCase(CallSandboxTestCase):
             data=data
         )
         response = json.loads(response.content.decode())
-
-        print(f"RESPONSE = {response}")
 
         self.assertEqual(response["status"], 0)
         self.assertTrue("result" in response)
