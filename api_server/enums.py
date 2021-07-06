@@ -13,3 +13,5 @@ class LoaderErrCode(IntEnum):
 class CallSandboxErrCode(IntEnum):
     PATH_COMMAND_NOT_PRESENT = -1,
     COMMAND_NOT_PRESENT = -2,
+    INVALID_FROZEN_RESOURCE_ID = -3,
+    ENV_ID_NOT_PRESENT = -4,

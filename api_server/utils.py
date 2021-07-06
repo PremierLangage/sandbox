@@ -66,7 +66,7 @@ def build_pl(pl_data: dict, settings: dict = None, params: dict = None) -> None:
     if "seed" not in pl_data:
         pl_data["seed"] = create_seed()
 
-def build_env_act(pl_data: dict, path: str = None):
+def build_env(pl_data: dict, path: str = None):
     env = dict(pl_data['__files'])
     env["components.py"] = components_source()
     
@@ -88,35 +88,6 @@ def build_env_act(pl_data: dict, path: str = None):
                 
     return env
 
-def build_env(pl_data: dict, answer: dict = None) -> AnyStr:
-    """
-        Creates the environment to execute the builder or the grader
-        on the sandbox.
-
-        :param pl_data:     The content of pl
-        :param answer:      The answer send by the client
-    """
-    env = dict(pl_data['__files'])
-    env["components.py"] = components_source()
-    
-    tmp = dict(pl_data)
-    del tmp['__files']
-    env['pl.json'] = json.dumps(tmp)
-
-    env['builder.sh'] = "#!/usr/bin/env bash\npython3 builder.py pl.json processed.json 2> stderr.log"
-    env['grader.sh'] = "#!/usr/bin/env bash\npython3 grader.py pl.json answers.json processed.json feedback.html 2> stderr.log"
-    
-    if 'grader' in pl_data and 'grader.py' not in env:
-        env['grader.py'] = pl_data['grader']
-    
-    if 'builder' in pl_data and 'builder.py' not in env:
-        env['builder.py'] = pl_data['builder']
-    
-    if answer is not None:
-        env['answer.json'] = json.dumps(answer)
-    
-    return tar_from_dic(env)
-
 def build_config(list_commands: list, save: bool, environment: str=None, result_path: str=None) -> str:
     """
         Creates the configuration to execute in the sandbox.
@@ -135,7 +106,7 @@ def build_config(list_commands: list, save: bool, environment: str=None, result_
         commands["result_path"] = result_path
     return json.dumps(commands)
 
-def build_resource(request: Request, data: dict, is_demo: bool, path: str) -> Tuple[dict, dict]:
+def build_resource(request: Request, data: dict, path: str) -> Tuple[dict, dict]:
     """
         Create resources to build in the sandbox.
 
@@ -145,25 +116,11 @@ def build_resource(request: Request, data: dict, is_demo: bool, path: str) -> Tu
 
     if "answer" in data and "env_id" in data:
         return build_answer(data=data)
-    
-    env_id = data["env_id"] if "env_id" in data else None
-    
-    if not is_demo:
-        if "resource_id" not in data:
-            return LoaderErrCode.FROZEN_RESOURCE_ID_NOT_PRESENT
-        try:
-            frozen = FrozenResource.objects.get(id=int(data["resource_id"]))
-            data = frozen.data
-        except:
-            return LoaderErrCode.FROZEN_RESOURCE_ID_NOT_IN_DB
 
     build_pl(pl_data=data, settings=request.data.get("settings"), params=request.data.get("params"))
-    env = build_env(data)
-    
-    if path is not None and env_id is not None:
-        env_id = os.path.join(path, env_id)
+    env = tar_from_dic(build_env(data))
 
-    config = build_config(['sh builder.sh'], True, environment=env_id, result_path="processed.json")
+    config = build_config(['python3 builder.py pl.json processed.json 2> stderr.log'], True, result_path="processed.json")
 
     return (env, config)
 
@@ -176,7 +133,7 @@ def build_answer(data: dict) -> Tuple[dict, dict]:
     answer = data["answer"]
     env_id = data["env_id"]
     env = tar_from_dic({"answers.json":json.dumps(answer)})
-    config = build_config(['sh grader.sh'], True, environment=env_id, result_path="feedback.html")
+    config = build_config(['python3 grader.py pl.json answers.json processed.json feedback.html 2> stderr.log'], True, environment=env_id, result_path="feedback.html")
 
     return (env, config)
 
