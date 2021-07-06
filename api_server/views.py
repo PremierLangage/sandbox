@@ -110,7 +110,7 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
                 pl_data = frozen.data
             except ObjectDoesNotExist as odne:
                 raise odne
-            files[str(pl)+".json"] = pl_data
+            files[str(pl)+".json"] = json.dumps(pl_data)
             files.update(build_env(pl_data, path=os.path.join(str(pl),"")))
         
         data_activity["current"] = 0
