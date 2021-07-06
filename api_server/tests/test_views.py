@@ -1,7 +1,10 @@
 import json
 import os
 
+import settings
+
 from random import randint
+from typing import List
 
 from django.test.utils import override_settings
 from sandbox.tasks import remove_expired_env
@@ -10,7 +13,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from api_server.utils import data_to_hash
-from api_server.enums import LoaderErrCode
+from api_server.enums import CallSandboxErrCode, LoaderErrCode
 from api_server.models import FrozenResource
 
 from sandbox.containers import initialise_containers, purging_containers
@@ -36,8 +39,8 @@ class FrozenTestCase(TestCase):
         self.frozen1 = FrozenResource.objects.create(hash=data_to_hash(self.data1), data=self.data1)
         self.frozen2 = FrozenResource.objects.create(hash=data_to_hash(self.data2), data=self.data2)
 
-        with open(os.path.join(TEST_DATA_ROOT, "basic_pl.json")) as f:
-            self.pl_data = json.load(f)
+        with open(os.path.join(TEST_DATA_ROOT, "basic_pl1.json")) as f:
+            self.pl_data1 = json.load(f)
 
         super().setUp()
     
@@ -92,11 +95,17 @@ class FrozenTestCase(TestCase):
         response = json.loads(response.content.decode())
         self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_VALID)
 
-@override_settings(ENVIRONMENT_EXPIRATION=1)
+
 class CallSandboxTestCase(TestCase):
     def setUp(self) -> None:
-        with open(os.path.join(TEST_DATA_ROOT, "basic_pl.json")) as f:
-            self.pl_data = json.load(f)
+        with open(os.path.join(TEST_DATA_ROOT, "basic_pl1.json")) as f:
+            self.pl_data1 = json.load(f)
+
+        with open(os.path.join(TEST_DATA_ROOT, "basic_pl2.json")) as f:
+            self.pl_data2 = json.load(f)
+
+        with open(os.path.join(TEST_DATA_ROOT, "basic_activity.json")) as f:
+            self.activity_data = json.load(f)
 
         courses = ["course" + str(i+1) for i in range(NB_COURSE)]
         activities = ["activity" + str(i+1) for i in range(NB_ACTIVITIES)]
@@ -113,22 +122,34 @@ class CallSandboxTestCase(TestCase):
 
             self.paths.append(os.path.join(course, activity, user, exercice))
 
-
         purging_containers()
         initialise_containers()
+
         super().setUp()
 
-    
     def tearDown(self) -> None:
         remove_expired_env()
         purging_containers()
         super().tearDown()
 
-    """
-    Tests Play Demo
-    """
+    def push_frozen(self, push):
+        data = {"data": json.dumps(push)}
+
+        response = self.client.post(reverse("api_server:frozen_post"), data=data)
+        response = json.loads(response.content.decode())
+        return response["result"]["id"]
+
+@override_settings(ENVIRONMENT_EXPIRATION=1)
+class PlayDemoTestCase(CallSandboxTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+
+    
+    def tearDown(self) -> None:
+        super().tearDown()
+
     def test_play_demo_good_answer(self):
-        data = {"data": json.dumps(self.pl_data)}
+        data = {"data": json.dumps(self.pl_data1)}
         
         response = self.client.post(reverse("api_server:play_demo"), data=data)
         response = json.loads(response.content.decode())
@@ -143,7 +164,7 @@ class CallSandboxTestCase(TestCase):
         self.assertEqual(response["execution"][0]["stdout"], "100")
 
     def test_play_demo_wrong_answer(self):
-        data = {"data": json.dumps(self.pl_data)}
+        data = {"data": json.dumps(self.pl_data1)}
         
         response = self.client.post(reverse("api_server:play_demo"), data=data)
         response = json.loads(response.content.decode())
@@ -158,7 +179,7 @@ class CallSandboxTestCase(TestCase):
         self.assertEqual(response["execution"][0]["stdout"], "0")
 
     def test_play_demo_with_path(self):
-        data = {"data": json.dumps(self.pl_data), "path": self.paths[0]}
+        data = {"data": json.dumps(self.pl_data1), "path": self.paths[0]}
         
         response = self.client.post(reverse("api_server:play_demo"), data=data)
         response = json.loads(response.content.decode())
@@ -174,7 +195,7 @@ class CallSandboxTestCase(TestCase):
 
     def test_play_demo_with_many_path(self):
         for path in self.paths:
-            data = {"data": json.dumps(self.pl_data), "path": path}
+            data = {"data": json.dumps(self.pl_data1), "path": path}
             
             response = self.client.post(reverse("api_server:play_demo"), data=data)
             response = json.loads(response.content.decode())
@@ -189,7 +210,7 @@ class CallSandboxTestCase(TestCase):
             self.assertEqual(response["execution"][0]["stdout"], "100")
     
     def test_play_demo_data_not_present(self):
-        data = {"wrong": json.dumps(self.pl_data)}
+        data = {"wrong": json.dumps(self.pl_data1)}
         
         response = self.client.post(reverse("api_server:play_demo"), data=data)
         response = json.loads(response.content.decode())
@@ -197,124 +218,227 @@ class CallSandboxTestCase(TestCase):
         self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_PRESENT)
 
     def test_play_demo_data_not_valid(self):
-        data = {"data": self.pl_data}
+        data = {"data": self.pl_data1}
         
         response = self.client.post(reverse("api_server:play_demo"), data=data)
         response = json.loads(response.content.decode())
 
         self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_VALID)
 
+@override_settings(ENVIRONMENT_EXPIRATION=1)
+class PlayActivityTestCase(CallSandboxTestCase):
+    def setUp(self) -> None:
+        super().setUp()
 
-    """
-    Tests Play Exo
-    """
-    def _push_frozen(self):
-        data = {"data": json.dumps(self.pl_data)}
-
-        response = self.client.post(reverse("api_server:frozen_post"), data=data)
-        response = json.loads(response.content.decode())
-        return response["result"]["id"]
-
-    def test_play_exo_good_answer(self):
-        id = self._push_frozen()
-        data = {"data":json.dumps({"resource_id":id})}
-
-        response = self.client.post(reverse("api_server:play_exo"), data=data)
-        response = json.loads(response.content.decode())
-
-        self.assertEqual(response["status"], 0)
-
-        data = {"data":json.dumps({"answer":{"answer": "pim = 1\npam = 2\npom = 3"}, "env_id":response["environment"]})}
-        response = self.client.post(reverse("api_server:play_exo"), data=data)
-        response = json.loads(response.content.decode())
-
-        self.assertEqual(response["status"], 0)
-        self.assertEqual(response["execution"][0]["stdout"], "100")
-
-    def test_play_exo_wrong_answer(self):
-        id = self._push_frozen()
-        data = {"data":json.dumps({"resource_id":id})}
-
-        response = self.client.post(reverse("api_server:play_exo"), data=data)
-        response = json.loads(response.content.decode())
-
-        self.assertEqual(response["status"], 0)
-
-        data = {"data":json.dumps({"answer":{"answer": ""}, "env_id":response["environment"]})}
-        response = self.client.post(reverse("api_server:play_exo"), data=data)
-        response = json.loads(response.content.decode())
-
-        self.assertEqual(response["status"], 0)
-        self.assertEqual(response["execution"][0]["stdout"], "0")
-
-    def test_play_exo_with_path(self):
-        id = self._push_frozen()
-        data = {"data":json.dumps({"resource_id":id}), "path": self.paths[0]}
-
-        response = self.client.post(reverse("api_server:play_exo"), data=data)
-        response = json.loads(response.content.decode())
-
-        self.assertEqual(response["status"], 0)
-
-        data = {"data":json.dumps({"answer":{"answer": "pim = 1\npam = 2\npom = 3"}, "env_id":response["environment"]}), "path": self.paths[0]}
-        response = self.client.post(reverse("api_server:play_demo"), data=data)
-        response = json.loads(response.content.decode())
-
-        self.assertEqual(response["status"], 0)
-        self.assertEqual(response["execution"][0]["stdout"], "100")
-        self.assertTrue(os.path.exists(os.path.join(ENVIRONMENT_ROOT, f"{response['environment']}.tgz")))
-
-    def test_play_exo_with_many_path(self):
-        for path in self.paths:
-            id = self._push_frozen()
-            data = {"data":json.dumps({"resource_id":id}), "path": path}
-
-            response = self.client.post(reverse("api_server:play_exo"), data=data)
-            response = json.loads(response.content.decode())
-
-            self.assertEqual(response["status"], 0)
-
-            data = {"data":json.dumps({"answer":{"answer": "pim = 1\npam = 2\npom = 3"}, "env_id":response["environment"]}), "path": path}
-            response = self.client.post(reverse("api_server:play_demo"), data=data)
-            response = json.loads(response.content.decode())
-
-            self.assertEqual(response["status"], 0)
-            self.assertEqual(response["execution"][0]["stdout"], "100")
-
-            self.assertTrue(os.path.exists(os.path.join(ENVIRONMENT_ROOT, f"{response['environment']}.tgz")))
-
-    def test_play_exo_data_not_present(self):
-        id = self._push_frozen()
-        data = {"wrong": json.dumps({"resource_id":id})}
-        
-        response = self.client.post(reverse("api_server:play_exo"), data=data)
-        response = json.loads(response.content.decode())
-
-        self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_PRESENT)
-
-    def test_play_exo_data_not_valid(self):
-        id = self._push_frozen()
-        data = {"data": {"resource_id":id}}
-        
-        response = self.client.post(reverse("api_server:play_exo"), data=data)
-        response = json.loads(response.content.decode())
-
-        self.assertEqual(response["status"], LoaderErrCode.DATA_NOT_VALID)
-
-    def test_play_exo_without_resource_id(self):
-        self._push_frozen()
-        data = {"data":json.dumps({})} 
-
-        response = self.client.post(reverse("api_server:play_exo"), data=data)
-        response = json.loads(response.content.decode())
-
-        self.assertEqual(response["status"], LoaderErrCode.FROZEN_RESOURCE_ID_NOT_PRESENT)
     
-    def test_play_exo_with_wrong_resource_id(self):
-        id = self._push_frozen()
-        data = {"data":json.dumps({"resource_id": id+1})}
+    def tearDown(self) -> None:
+        super().tearDown()
 
-        response = self.client.post(reverse("api_server:play_exo"), data=data)
+    def push_frozen_activity(self, activity: dict, exercices: List[dict]):
+        pls = []
+        for i in exercices:
+            pl_id = self.push_frozen(i)
+            pls.append(pl_id)
+        activity["lst_exos"] = pls
+        return self.push_frozen(activity)
+
+    def _start_activity(self, data):
+        response = self.client.post(
+            reverse("api_server:execute"),
+            data=data
+        )
+        return json.loads(response.content.decode())
+
+    def test_start_activity(self):
+        id = self.push_frozen_activity(self.activity_data, [self.pl_data1])
+
+        data={
+            "path_command":".",
+            "command":["python3 start.py activity.json output.json result.json"],
+            "frozen_resource_id":id,
+        }
+        response = self.client.post(
+            reverse("api_server:execute"),
+            data=data
+        )
+        response = json.loads(response.content.decode())
+        
+        self.assertEqual(response["status"], 0)
+        self.assertEqual(int(response["execution"][0]["stdout"]), self.activity_data["lst_exos"][0])
+        self.assertTrue(os.path.exists(os.path.join(settings.ENVIRONMENT_ROOT, response["environment"])+".tgz"))
+
+    def test_start_activity_without_path_command(self):
+        id = self.push_frozen_activity(self.activity_data, [self.pl_data1])
+
+        data={
+            "command":["python3 start.py activity.json output.json result.json"],
+            "frozen_resource_id":id,
+        }
+        response = self.client.post(
+            reverse("api_server:execute"),
+            data=data
+        )
+        response = json.loads(response.content.decode())
+        
+        self.assertEqual(response["status"], CallSandboxErrCode.PATH_COMMAND_NOT_PRESENT)
+        self.assertEqual(response["stderr"], "path_command is not present")
+
+    def test_start_activity_without_command(self):
+        id = self.push_frozen_activity(self.activity_data, [self.pl_data1])
+
+        data={
+            "path_command":".",
+            "frozen_resource_id":id,
+        }
+        response = self.client.post(
+            reverse("api_server:execute"),
+            data=data
+        )
+        response = json.loads(response.content.decode())
+        
+        self.assertEqual(response["status"], CallSandboxErrCode.COMMAND_NOT_PRESENT)
+        self.assertEqual(response["stderr"], "command is not present")
+
+    def test_start_activity_invalid_activity_id(self):
+        """
+            Wrong id to activity frozen resource
+        """
+        id = self.push_frozen_activity(self.activity_data, [self.pl_data1])
+
+        data={
+            "path_command":".",
+            "command":["python3 start.py activity.json output.json result.json"],
+            "frozen_resource_id":id+1,
+        }
+        response = self.client.post(
+            reverse("api_server:execute"),
+            data=data
+        )
+        response = json.loads(response.content.decode())
+        
+        self.assertEqual(response["status"], CallSandboxErrCode.INVALID_FROZEN_RESOURCE_ID)
+        self.assertEqual(response["stderr"], f"The id : {id+1} do not correspond to a FrozenResource")
+
+
+        """
+            Wrong id to exercice frozen resource
+        """
+        self.activity_data["lst_exos"] = [-1]
+        id =  self.push_frozen(self.activity_data)
+
+        data={
+            "path_command":".",
+            "command":["python3 start.py activity.json output.json result.json"],
+            "frozen_resource_id":id,
+        }
+        response = self.client.post(
+            reverse("api_server:execute"),
+            data=data
+        )
         response = json.loads(response.content.decode())
 
-        self.assertEqual(response["status"], LoaderErrCode.FROZEN_RESOURCE_ID_NOT_IN_DB)
+        self.assertEqual(response["status"], CallSandboxErrCode.INVALID_FROZEN_RESOURCE_ID)
+        self.assertEqual(response["stderr"], f"The id : {id} do not correspond to a FrozenResource")
+
+    def test_start_activity_invalid_exercice_id(self):
+        id =  self.push_frozen(self.activity_data)
+
+        data={
+            "path_command":".",
+            "command":["python3 start.py activity.json output.json result.json"],
+            "frozen_resource_id":id,
+        }
+        response = self.client.post(
+            reverse("api_server:execute"),
+            data=data
+        )
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], CallSandboxErrCode.INVALID_FROZEN_RESOURCE_ID)
+        self.assertEqual(response["stderr"], f"The id : {id} do not correspond to a FrozenResource")
+
+    def test_response_good_answer(self):
+        id = self.push_frozen_activity(self.activity_data, [self.pl_data1])
+        response = self._start_activity(data={
+            "path_command":".",
+            "command":["python3 start.py activity.json output.json result.json"],
+            "frozen_resource_id":id,
+        })
+
+        repo = response['execution'][0]['stdout']
+        env = response['environment']
+
+        data={
+            "path_command":repo,
+            "command":["python3 grader.py pl.json answers.json processed.json feedback.html 2> stderr.log"],
+            "env_id":env,
+            "answer":json.dumps({"answer": "pim = 1\npam = 2\npom = 3"}),
+            "result":os.path.join(repo, "feedback.html"),
+        }
+
+        response = self.client.post(
+            reverse("api_server:execute"),
+            data=data
+        )
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], 0)
+        self.assertEqual(int(response["execution"][0]["stdout"]), 100)
+        self.assertTrue("result" in response)
+
+    def test_response_wrong_answer(self):
+        id = self.push_frozen_activity(self.activity_data, [self.pl_data1])
+        response = self._start_activity(data={
+            "path_command":".",
+            "command":["python3 start.py activity.json output.json result.json"],
+            "frozen_resource_id":id,
+        })
+
+        repo = response['execution'][0]['stdout']
+        env = response['environment']
+
+        data={
+            "path_command":repo,
+            "command":["python3 grader.py pl.json answers.json processed.json feedback.html 2> stderr.log"],
+            "env_id":env,
+            "answer":json.dumps({"answer": ""}),
+            "result":os.path.join(repo, "feedback.html"),
+        }
+
+        response = self.client.post(
+            reverse("api_server:execute"),
+            data=data
+        )
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], 0)
+        self.assertEqual(int(response["execution"][0]["stdout"]), 0)
+        self.assertTrue("result" in response)
+
+    def test_next(self):
+        id = self.push_frozen_activity(self.activity_data, [self.pl_data1, self.pl_data2])
+        response = self._start_activity(data={
+            "path_command":".",
+            "command":["python3 start.py activity.json output.json result.json"],
+            "frozen_resource_id":id,
+        })
+
+        env = response['environment']
+
+        data={
+            "path_command":".",
+            "command":["python3 next.py activity.json output.json result.json"],
+            "env_id":env,
+            "result":"result.json",
+        }
+
+        response = self.client.post(
+            reverse("api_server:execute"),
+            data=data
+        )
+        response = json.loads(response.content.decode())
+
+        print(f"RESPONSE = {response}")
+
+        self.assertEqual(response["status"], 0)
+        self.assertTrue("result" in response)
