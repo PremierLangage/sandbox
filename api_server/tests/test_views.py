@@ -22,6 +22,9 @@ from settings import ENVIRONMENT_ROOT, ENVIRONMENT_EXPIRATION
 
 
 TEST_DATA_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_data")
+START_REQUEST = "python3 exec.py start activity.json output.json result.json 2> stderr.log"
+NEXT_REQUEST = "python3 exec.py next activity.json output.json result.json 2> stderr.log"
+GRADER_REQUEST = "python3 grader.py pl.json answers.json processed.json feedback.html 2> stderr.log"
 
 MAX_PATHS = 20
 NB_COURSE = 2
@@ -103,6 +106,9 @@ class CallSandboxTestCase(TestCase):
 
         with open(os.path.join(TEST_DATA_ROOT, "basic_pl2.json")) as f:
             self.pl_data2 = json.load(f)
+        
+        with open(os.path.join(TEST_DATA_ROOT, "basic_pl3.json")) as f:
+            self.pl_data3 = json.load(f)
 
         with open(os.path.join(TEST_DATA_ROOT, "basic_activity.json")) as f:
             self.activity_data = json.load(f)
@@ -254,7 +260,7 @@ class PlayActivityTestCase(CallSandboxTestCase):
 
         data={
             "path_command":".",
-            "command":["python3 start.py activity.json output.json result.json"],
+            "command":[START_REQUEST],
             "frozen_resource_id":id,
             "result": "result.json"
         }
@@ -272,7 +278,7 @@ class PlayActivityTestCase(CallSandboxTestCase):
         id = self.push_frozen_activity(self.activity_data, [self.pl_data1])
 
         data={
-            "command":["python3 start.py activity.json output.json result.json"],
+            "command":[START_REQUEST],
             "frozen_resource_id":id,
         }
         response = self.client.post(
@@ -308,7 +314,7 @@ class PlayActivityTestCase(CallSandboxTestCase):
 
         data={
             "path_command":".",
-            "command":["python3 start.py activity.json output.json result.json"],
+            "command":[START_REQUEST],
             "frozen_resource_id":id+1,
         }
         response = self.client.post(
@@ -329,7 +335,7 @@ class PlayActivityTestCase(CallSandboxTestCase):
 
         data={
             "path_command":".",
-            "command":["python3 start.py activity.json output.json result.json"],
+            "command":[START_REQUEST],
             "frozen_resource_id":id,
         }
         response = self.client.post(
@@ -346,7 +352,7 @@ class PlayActivityTestCase(CallSandboxTestCase):
 
         data={
             "path_command":".",
-            "command":["python3 start.py activity.json output.json result.json"],
+            "command":[START_REQUEST],
             "frozen_resource_id":id,
         }
         response = self.client.post(
@@ -362,7 +368,7 @@ class PlayActivityTestCase(CallSandboxTestCase):
         id = self.push_frozen_activity(self.activity_data, [self.pl_data1])
         response = self._start_activity(data={
             "path_command":".",
-            "command":["python3 start.py activity.json output.json result.json"],
+            "command":[START_REQUEST],
             "frozen_resource_id":id,
         })
 
@@ -371,7 +377,7 @@ class PlayActivityTestCase(CallSandboxTestCase):
 
         data={
             "path_command":repo,
-            "command":["python3 grader.py pl.json answers.json processed.json feedback.html 2> stderr.log"],
+            "command":[GRADER_REQUEST],
             "env_id":env,
             "answer":json.dumps({"answer": "pim = 1\npam = 2\npom = 3"}),
             "result":os.path.join(repo, "feedback.html"),
@@ -391,7 +397,7 @@ class PlayActivityTestCase(CallSandboxTestCase):
         id = self.push_frozen_activity(self.activity_data, [self.pl_data1])
         response = self._start_activity(data={
             "path_command":".",
-            "command":["python3 start.py activity.json output.json result.json"],
+            "command":[START_REQUEST],
             "frozen_resource_id":id,
         })
 
@@ -400,7 +406,7 @@ class PlayActivityTestCase(CallSandboxTestCase):
 
         data={
             "path_command":repo,
-            "command":["python3 grader.py pl.json answers.json processed.json feedback.html 2> stderr.log"],
+            "command":[GRADER_REQUEST],
             "env_id":env,
             "answer":json.dumps({"answer": ""}),
             "result":os.path.join(repo, "feedback.html"),
@@ -417,18 +423,22 @@ class PlayActivityTestCase(CallSandboxTestCase):
         self.assertTrue("result" in response)
 
     def test_next(self):
-        id = self.push_frozen_activity(self.activity_data, [self.pl_data1, self.pl_data2])
+        id = self.push_frozen_activity(self.activity_data, [self.pl_data1, self.pl_data2, self.pl_data3])
         response = self._start_activity(data={
             "path_command":".",
-            "command":["python3 start.py activity.json output.json result.json"],
+            "command":["python3 exec.py start activity.json output.json result.json 2> stderr.log"],
             "frozen_resource_id":id,
+            "result":"result.json",
         })
+
+        result = json.loads(response["result"])
+        self.assertEqual(result["current"], 0)
 
         env = response['environment']
 
         data={
             "path_command":".",
-            "command":["python3 next.py activity.json output.json result.json"],
+            "command":[NEXT_REQUEST],
             "env_id":env,
             "result":"result.json",
         }
@@ -440,4 +450,47 @@ class PlayActivityTestCase(CallSandboxTestCase):
         response = json.loads(response.content.decode())
 
         self.assertEqual(response["status"], 0)
+        result = json.loads(response["result"])
+        self.assertEqual(result["current"], 1)
+
+        repo = response['execution'][0]['stdout']
+        env = response['environment']
+
+        self.assertEqual(result["lst_exos"][result["current"]], int(repo))
+
+        data={
+            "path_command":repo,
+            "command":[GRADER_REQUEST],
+            "env_id":env,
+            "answer":json.dumps({"answer": "X = \"Toto\""}),
+            "result":os.path.join(repo, "feedback.html"),
+        }
+
+        response = self.client.post(
+            reverse("api_server:execute"),
+            data=data
+        )
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], 0)
+        self.assertEqual(int(response["execution"][0]["stdout"]), 100)
         self.assertTrue("result" in response)
+
+        env = response['environment']
+
+        data={
+            "path_command":".",
+            "command":[NEXT_REQUEST],
+            "env_id":env,
+            "result":"result.json",
+        }
+
+        response = self.client.post(
+            reverse("api_server:execute"),
+            data=data
+        )
+        response = json.loads(response.content.decode())
+
+        self.assertEqual(response["status"], 0)
+        result = json.loads(response["result"])
+        self.assertEqual(result["current"], 2)
