@@ -97,6 +97,7 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
         try:
             frozen = FrozenResource.objects.get(id=int(frozen_id))
             data_activity = frozen.data
+            data_activity["name_exos"] = dict()
         except ObjectDoesNotExist as odne:
             raise odne
             
@@ -112,6 +113,7 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
                 raise odne
             files[str(pl)+".json"] = json.dumps(pl_data)
             files.update(build_env(pl_data, path=os.path.join(str(pl),"")))
+            data_activity["name_exos"][str(pl)] = pl_data["title"]
         
         data_activity["current"] = 0
         files["activity.json"] = json.dumps(data_activity)
