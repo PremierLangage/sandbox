@@ -1,3 +1,4 @@
+from api_server.components import components_source
 import json
 import os
 
@@ -44,7 +45,7 @@ class FrozenViewSet(
             frozen = FrozenResource.objects.get(id=id)
             return Response({"status":status.HTTP_200_OK, "frozen":{"id":frozen.pk, "hash":frozen.hash,"data":frozen.data}})
         except:
-            return Response({"status":LoaderErrCode.NON_EXISTANT_FROZEN_RESOURCE})
+            return Response({"status":LoaderErrCode.NON_EXISTANT_FROZEN_RESOURCE, "stderr":"FrozenResource not present"})
 
     def post(self, request: Request):
         """
@@ -53,13 +54,13 @@ class FrozenViewSet(
         """
         data = request.POST.get("data")
         if data is None:
-            return Response({"status":LoaderErrCode.DATA_NOT_PRESENT})
+            return Response({"status":LoaderErrCode.DATA_NOT_PRESENT, "stderr":"data not present"})
         
         try:
             data = json.loads(data)
             hash = data_to_hash(data)
         except JSONDecodeError:
-            return Response({"status":LoaderErrCode.DATA_NOT_VALID})
+            return Response({"status":LoaderErrCode.DATA_NOT_VALID, "stderr":"data not at json format"})
 
         frozen, created = FrozenResource.objects.get_or_create(hash=hash, data=data)
 
@@ -102,6 +103,7 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
             raise odne
             
         files = dict()
+        files["components.py"] = components_source()
         if "__files" in data_activity:
             for f in data_activity["__files"]:
                 files[f] = data_activity["__files"][f]
@@ -112,7 +114,6 @@ class CallSandboxViewSet(viewsets.GenericViewSet):
             except ObjectDoesNotExist as odne:
                 raise odne
             files[str(pl)+".json"] = json.dumps(pl_data)
-            files.update(build_env(pl_data, path=os.path.join(str(pl),"")))
             data_activity["name_exos"][str(pl)] = pl_data["title"]
         
         data_activity["current"] = 0
