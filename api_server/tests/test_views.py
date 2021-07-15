@@ -22,9 +22,9 @@ from settings import ENVIRONMENT_ROOT, ENVIRONMENT_EXPIRATION
 
 
 TEST_DATA_ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_data")
-START_REQUEST = "python3 exec.py start activity.json output.json result.json 2> stderr.log"
-NEXT_REQUEST = "python3 exec.py next activity.json output.json result.json 2> stderr.log"
-GRADER_REQUEST = "python3 grader.py pl.json answers.json processed.json feedback.html 2> stderr.log"
+START_REQUEST = "python3 exec.py start activity.json output.json result.json"
+NEXT_REQUEST = "python3 exec.py next activity.json output.json result.json"
+GRADER_REQUEST = "python3 grader.py pl.json answers.json processed.json feedback.html"
 
 MAX_PATHS = 20
 NB_COURSE = 2
@@ -426,7 +426,7 @@ class PlayActivityTestCase(CallSandboxTestCase):
         id = self.push_frozen_activity(self.activity_data, [self.pl_data1, self.pl_data2, self.pl_data3])
         response = self._start_activity(data={
             "path_command":".",
-            "command":["python3 exec.py start activity.json output.json result.json 2> stderr.log"],
+            "command":[START_REQUEST],
             "frozen_resource_id":id,
             "result":"result.json",
         })
