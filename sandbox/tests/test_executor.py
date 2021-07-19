@@ -178,7 +178,9 @@ class ExecutorTestCase(SandboxTestCase):
                 "dir/file3.txt",
                 "file1.txt",
                 "file3.txt",
-                "result.txt"
+                "result.txt",
+                "platon.py",
+                "exec.py"
             }
             
             self.assertSetEqual(expected, {t.name for t in tar.getmembers()})

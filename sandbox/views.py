@@ -61,9 +61,12 @@ class FileView(View):
     """Handle environment's file download."""
     
     
-    def head(self, _, env, path):
+    def head(self, request, env, path):
         """Returns a response with status 200 if <path> point to a file the environment <env>,
         404 otherwise."""
+        path_env = request.environ["QUERY_STRING"].replace("%2F", "/").split("=")[-1]
+        if path_env is not None:
+            env = os.path.join(path_env, str(env))
         file = utils.extract(env, path)
         response = HttpResponse()
         response["Content-Length"] = file.seek(0, SEEK_END)
@@ -72,9 +75,12 @@ class FileView(View):
         return response
     
     
-    def get(self, _, env, path):
+    def get(self, request, env, path):
         """Returns a response with status 200 if <path> point to a file the environment <env>,
         404 otherwise."""
+        path_env = request.environ["QUERY_STRING"].replace("%2F", "/").split("=")[-1]
+        if path_env is not None:
+            env = os.path.join(path_env, str(env))
         file = utils.extract(env, path)
         response = HttpResponse(file.read())
         response["Content-Length"] = file.tell()

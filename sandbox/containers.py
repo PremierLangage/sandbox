@@ -90,13 +90,24 @@ class Sandbox:
         if os.path.isdir(path):
             shutil.rmtree(path, ignore_errors=True)
         os.makedirs(path)
-        
         self.name = name
         self.container = create_container(name)
         self.index = index
         self.used_since = 0
         self.to_delete = False
         self.envpath = os.path.join(settings.DOCKER_VOLUME_HOST_BASEDIR, self.name)
+        self._get_default_file()
+
+
+    def _get_default_file(self):
+        """Copy every files and directory in DOCKER_DEFAULT_FILES into container environement."""
+        for item in os.listdir(settings.DOCKER_DEFAULT_FILES):
+            s = os.path.join(settings.DOCKER_DEFAULT_FILES, item)
+            d = os.path.join(self.envpath, item)
+            if os.path.isdir(s):
+                shutil.copytree(s, d)
+            else:
+                shutil.copy2(s, d)
     
     
     @staticmethod
