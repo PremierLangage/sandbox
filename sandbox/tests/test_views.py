@@ -14,7 +14,7 @@ from django.conf import settings
 from django.test import SimpleTestCase, override_settings
 from django.urls import reverse
 
-from .utils import ENV1, ENV2
+from .utils import ENV1, ENV2, ENV3
 from ..containers import Sandbox
 from ..enums import SandboxErrCode
 from ..tests.utils import EnvTestCase, SandboxTestCase
@@ -69,6 +69,20 @@ class FileViewTestCase(EnvTestCase):
         self.assertEqual(response['Content-Type'], "application/octet-stream")
         self.assertEqual(response['Content-Disposition'], f"attachment; filename=file1.txt")
     
+
+    def test_head_ok_with_path(self):
+        path_env, env = ENV3.rsplit("/", 1)
+        response = self.client.head(reverse("sandbox:file", args=(env, "Germinal.txt")), data={"path_env":path_env})
+        path = os.path.join(settings.ENVIRONMENT_ROOT, f"{ENV3}.tgz")
+        
+        with tarfile.open(path, "r:gz") as tar:
+            size = tar.extractfile("Germinal.txt").seek(0, os.SEEK_END)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Length"], str(size))
+        self.assertEqual(response['Content-Type'], "application/octet-stream")
+        self.assertEqual(response['Content-Disposition'], f"attachment; filename=Germinal.txt")
+    
     
     def test_get_ok(self):
         response = self.client.get(reverse("sandbox:file", args=(ENV1, "file1.txt")))
@@ -81,6 +95,21 @@ class FileViewTestCase(EnvTestCase):
         self.assertEqual(response["Content-Length"], str(len(content)))
         self.assertEqual(response['Content-Type'], "application/octet-stream")
         self.assertEqual(response['Content-Disposition'], f"attachment; filename=file1.txt")
+        self.assertEqual(content, response.content)
+
+
+    def test_get_ok_with_path(self):
+        path_env, env = ENV3.rsplit("/", 1)
+        response = self.client.get(reverse("sandbox:file", args=(env, "Germinal.txt")), data={"path_env":path_env})
+        path = os.path.join(settings.ENVIRONMENT_ROOT, f"{ENV3}.tgz")
+        
+        with tarfile.open(path, "r:gz") as tar:
+            content = tar.extractfile("Germinal.txt").read()
+        print("TESTS")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Length"], str(len(content)))
+        self.assertEqual(response['Content-Type'], "application/octet-stream")
+        self.assertEqual(response['Content-Disposition'], f"attachment; filename=Germinal.txt")
         self.assertEqual(content, response.content)
     
     
@@ -258,7 +287,9 @@ class ExecuteTestCase(SandboxTestCase):
                 "dir/file3.txt",
                 "file1.txt",
                 "file3.txt",
-                "result.txt"
+                "result.txt",
+                "platon.py",
+                "exec.py"
             }
             
             self.assertSetEqual(expected, {t.name for t in tar.getmembers()})
@@ -307,7 +338,9 @@ class ExecuteTestCase(SandboxTestCase):
                 "file1.txt",
                 "file2.txt",
                 "file3.txt",
-                "result.txt"
+                "result.txt",
+                "platon.py",
+                "exec.py"
             }
             
             self.assertSetEqual(expected, {t.name for t in tar.getmembers()})
@@ -353,7 +386,11 @@ class ExecuteTestCase(SandboxTestCase):
                 "dir/file3.txt",
                 "file1.txt",
                 "file3.txt",
-                "result.txt"
+                "result.txt",
+                "platon.py",
+                "exec.py",
+                "platon.py",
+                "exec.py"
             }
             
             self.assertSetEqual(expected, {t.name for t in tar.getmembers()})

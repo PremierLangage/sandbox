@@ -261,6 +261,8 @@ del logger
 if TESTING:
     DOCKER_COUNT = 5
 
+DOCKER_DEFAULT_FILES = os.path.join(BASE_DIR, 'default_file')
+
 from sandbox.containers import initialise_containers  # noqa
 
 
