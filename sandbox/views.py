@@ -15,7 +15,6 @@ import docker
 from django.conf import settings
 from django.http import (HttpResponse, HttpResponseBadRequest, HttpResponseNotAllowed,
                          HttpResponseNotFound, JsonResponse)
-from django.core.handlers.wsgi import WSGIRequest
 from django.views.generic import View
 
 from . import utils
@@ -30,8 +29,12 @@ class EnvView(View):
     """Handle environment download."""
     
     
-    def head(self, _, env):
+    def head(self, request, env):
         """Returns a response with status 200 if the environment <env> exists, 404 otherwise."""
+        path_env = request.GET.get("path_env")
+        if path_env is not None:
+            env = os.path.join(path_env, str(env))
+
         path = utils.get_env(env)
         if path is None:
             return HttpResponseNotFound(f"No environment with UUID '{env}' found")
@@ -43,15 +46,19 @@ class EnvView(View):
         return response
     
     
-    def get(self, _, env):
+    def get(self, request, env):
         """Return the environment with the UUID <env>, 404 if it does not exists."""
+        path_env = request.GET.get("path_env")
+        if path_env is not None:
+            env = os.path.join(path_env, str(env))
+
         path = utils.get_env(env)
         if path is None:
             return HttpResponseNotFound(f"No environment with UUID '{env}' found")
         
         with open(path, "rb") as f:
             response = HttpResponse(f.read())
-        
+
         response["Content-Length"] = os.stat(path).st_size
         response['Content-Type'] = "application/gzip"
         response['Content-Disposition'] = f"attachment; filename={env}.tgz"
@@ -62,7 +69,7 @@ class FileView(View):
     """Handle environment's file download."""
     
     
-    def head(self, request: WSGIRequest, env, path):
+    def head(self, request, env, path):
         """Returns a response with status 200 if <path> point to a file the environment <env>,
         404 otherwise."""
         path_env = request.GET.get("path_env")
@@ -76,7 +83,7 @@ class FileView(View):
         return response
     
     
-    def get(self, request: WSGIRequest, env, path):
+    def get(self, request, env, path):
         """Returns a response with status 200 if <path> point to a file the environment <env>,
         404 otherwise."""
         path_env = request.GET.get("path_env")
