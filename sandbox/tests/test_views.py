@@ -30,6 +30,17 @@ class EnvViewTestCase(EnvTestCase):
         self.assertEqual(response["Content-Length"], str(os.stat(path).st_size))
         self.assertEqual(response['Content-Type'], "application/gzip")
         self.assertEqual(response['Content-Disposition'], f"attachment; filename={ENV1}.tgz")
+
+    
+    def test_head_ok_with_path(self):
+        path_env, env = ENV3.rsplit("/", 1)
+        response = self.client.head(reverse("sandbox:environment", args=(env,)), data={"path_env":path_env})
+        path = os.path.join(settings.ENVIRONMENT_ROOT, f"{ENV3}.tgz")
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Length"], str(os.stat(path).st_size))
+        self.assertEqual(response['Content-Type'], "application/gzip")
+        self.assertEqual(response['Content-Disposition'], f"attachment; filename={ENV3}.tgz")
     
     
     def test_get_ok(self):
@@ -40,6 +51,20 @@ class EnvViewTestCase(EnvTestCase):
         self.assertEqual(response["Content-Length"], str(os.stat(path).st_size))
         self.assertEqual(response['Content-Type'], "application/gzip")
         self.assertEqual(response['Content-Disposition'], f"attachment; filename={ENV1}.tgz")
+        
+        with open(path, "rb") as f:
+            self.assertEqual(f.read(), response.content)
+
+
+    def test_get_ok_with_path(self):
+        path_env, env = ENV3.rsplit("/", 1)
+        response = self.client.get(reverse("sandbox:environment", args=(env,)), data={"path_env":path_env})
+        path = os.path.join(settings.ENVIRONMENT_ROOT, f"{ENV3}.tgz")
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Length"], str(os.stat(path).st_size))
+        self.assertEqual(response['Content-Type'], "application/gzip")
+        self.assertEqual(response['Content-Disposition'], f"attachment; filename={ENV3}.tgz")
         
         with open(path, "rb") as f:
             self.assertEqual(f.read(), response.content)
