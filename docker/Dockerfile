@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     git \
     ghc \
+    clang \
     ocaml-nox \
     ocaml \
     perl \
