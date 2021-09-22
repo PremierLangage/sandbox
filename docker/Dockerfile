@@ -43,8 +43,8 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 2
 # Installing pip3 and python's requirements
 RUN wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py
 RUN python3 /tmp/get-pip.py
-RUN pip3 install wheel
-RUN pip3 install \
+RUN pip3 --no-cache-dir install wheel
+RUN pip3 --no-cache-dir install \
     jinja2 \
     "jsonpickle<1.4" \
     sympy \
