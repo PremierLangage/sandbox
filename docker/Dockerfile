@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql \
     libbsd-dev \
     sqlite \
+    r-base \
     && apt-get clean \
     && apt-get autoclean \
     && apt-get autoremove \
