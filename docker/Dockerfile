@@ -48,21 +48,6 @@ RUN python3 /tmp/get-pip.py
 RUN pip3 --no-cache-dir install wheel
 RUN pip3 --no-cache-dir install -r requirements.txt
 
-# RUN pip3 --no-cache-dir install \
-#     jinja2 \
-#     "jsonpickle<1.4" \
-#     sympy \
-#     matplotlib \
-#     automata-lib \
-#     fado \
-#     tr-greenery \
-#     wimsapi \
-#     graphviz \
-#     mpld3 \
-#     networkx \
-#     scipy \
-#     prettytable
-
 
 # Installing Java 11
 RUN update-alternatives --install /usr/bin/java java  /usr/lib/jvm/java-11-openjdk-amd64/bin/java 2
