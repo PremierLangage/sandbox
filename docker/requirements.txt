@@ -1,0 +1,13 @@
+jinja2
+jsonpickle<1.4
+sympy
+matplotlib
+automata-lib
+fado
+tr-greenery
+wimsapi
+graphviz
+mpld3
+networkx
+scipy
+prettytable
