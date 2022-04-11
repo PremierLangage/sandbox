@@ -42,10 +42,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 2
 
 # Installing pip3 and python's requirements
+ADD requirements.txt .
 RUN wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py
 RUN python3 /tmp/get-pip.py
 RUN pip3 --no-cache-dir install wheel
-ADD requirements.txt .
 RUN pip3 --no-cache-dir install -r requirements.txt
 
 # RUN pip3 --no-cache-dir install \
