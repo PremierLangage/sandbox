@@ -45,22 +45,8 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 2
 RUN wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py
 RUN python3 /tmp/get-pip.py
 RUN pip3 --no-cache-dir install wheel
-RUN pip3 --no-cache-dir install \
-    "markupsafe==2.0.1" \
-    "jinja2==2.10" \
-    "jsonpickle<1.4" \
-    sympy \
-    matplotlib \
-    automata-lib \
-    fado \
-    tr-greenery \
-    wimsapi \
-    graphviz \
-    mpld3 \
-    networkx \
-    scipy \
-    prettytable
-
+ADD requirements.txt .
+RUN pip3 --no-cache-dir install -r requirements.txt
 
 # Installing Java 11
 RUN update-alternatives --install /usr/bin/java java  /usr/lib/jvm/java-11-openjdk-amd64/bin/java 2
