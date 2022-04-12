@@ -43,15 +43,15 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 2
 
 # Installing pip3 and python's requirements
 ADD requirements.txt .
-RUN wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py \
-    python3 /tmp/get-pip.py \
-    pip3 --no-cache-dir install wheel \
+RUN wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py &&\
+    python3 /tmp/get-pip.py &&\
+    pip3 --no-cache-dir install wheel &&\
     pip3 --no-cache-dir install -r requirements.txt
 
 # Installing Java 11
-RUN update-alternatives --install /usr/bin/java java  /usr/lib/jvm/java-11-openjdk-amd64/bin/java 2 \
-    update-alternatives --install /usr/bin/javac javac  /usr/lib/jvm/java-11-openjdk-amd64/bin/javac 2 \
-    mkdir /utils \
+RUN update-alternatives --install /usr/bin/java java  /usr/lib/jvm/java-11-openjdk-amd64/bin/java 2 &&\
+    update-alternatives --install /usr/bin/javac javac  /usr/lib/jvm/java-11-openjdk-amd64/bin/javac 2 &&\
+    mkdir /utils &&\
     mkdir /utils/libs/
 ENV PATH="/utils/libs/:${PATH}"
 ENV PYTHONPATH="/utils/libs/:${PYTHONPATH}"
