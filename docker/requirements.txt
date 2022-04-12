@@ -11,3 +11,5 @@ mpld3
 networkx
 scipy
 prettytable
+pandas
+pylama
