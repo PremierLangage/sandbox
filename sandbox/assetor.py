@@ -95,7 +95,8 @@ class Assetor:
         #     self.sandbox.extract_env(self.env_uuid)
         # else:
         #     os.remove(self.asset_path)
-        os.remove(self.asset_path)
+        if not self.save:
+            os.remove(self.asset_path)
         
         if result is not None:
             response["result"] = result
