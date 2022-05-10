@@ -18,4 +18,5 @@ urlpatterns = [
     path(r'usages/', views.UsageView.as_view(), name="usage"),
     path(r'libraries/', views.LibrariesView.as_view(), name="libraries"),
     path(r'execute/', views.ExecuteView.as_view(), name="execute"),
+    path(r'assets/', views.AssetsView.as_view(), name="assets"),
 ]

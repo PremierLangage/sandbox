@@ -190,6 +190,16 @@ ENVIRONMENT_ROOT = os.path.join(BASE_DIR, 'environments')
 if not os.path.isdir(ENVIRONMENT_ROOT):
     os.makedirs(ENVIRONMENT_ROOT)
 
+# NFS Directory settings
+NFS_DISK = os.path.join(BASE_DIR, '../disk-nfs')
+if not os.path.isdir(NFS_DISK):
+    os.makedirs(NFS_DISK)
+
+# Directory where assets are stored
+ASSETS_ROOT = os.path.join(NFS_DISK, 'assets')
+if not os.path.isdir(ASSETS_ROOT):
+    os.makedirs(ASSETS_ROOT)
+
 # ENVIRONMENT_EXPIRATION: Time before the environment are deleted.
 HOUR = 3600
 DAY = HOUR * 24

@@ -7,6 +7,7 @@
 import json
 import logging
 import os
+import re
 import threading
 import time
 from io import SEEK_END
@@ -17,10 +18,13 @@ from django.http import (HttpResponse, HttpResponseBadRequest, HttpResponseNotAl
                          HttpResponseNotFound, JsonResponse)
 from django.views.generic import View
 
+
+
 from . import utils
 from .containers import Sandbox
-from .executor import Command, Executor
-
+from .command import Command
+from .executor import Executor
+from .assetor import Assetor
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +138,38 @@ class ExecuteView(View):
         sandbox = Sandbox.acquire()
         try:
             response = Executor(commands, sandbox, env, result_path, save).execute()
+            logger.debug(f"Total execute request took : {time.time() - start} seconds")
+            return JsonResponse(response)
+        finally:
+            threading.Thread(target=sandbox.release).start()
+
+
+class AssetsView(View):
+
+    def post(self, request):
+        start = time.time()
+
+        config = request.POST.get("config")
+        if config is None:
+            return HttpResponseBadRequest("Missing argument 'config'")
+        
+        try:
+            config = json.loads(config)
+            if not isinstance(config, dict):
+                return HttpResponseBadRequest(f'config must be an object, not {type(config)}')
+        except json.JSONDecodeError as e:
+            return HttpResponseBadRequest(f"'config' json is invalid - {e}")
+
+        asset = utils.execute_asset(request, config)
+        commands = Command.from_config(config)
+        result_path = utils.parse_result_path(config)
+        save = utils.parse_save(config)
+        
+        logger.debug(f"Parsing config request took : {time.time() - start} seconds")
+        
+        sandbox = Sandbox.acquire()
+        try:
+            response = Assetor(commands, sandbox, asset, result_path, save).execute()
             logger.debug(f"Total execute request took : {time.time() - start} seconds")
             return JsonResponse(response)
         finally:

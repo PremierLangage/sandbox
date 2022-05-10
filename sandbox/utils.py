@@ -70,6 +70,11 @@ def merge_tar_gz(a: Optional[BinaryIO], b: Optional[BinaryIO]) -> Optional[Binar
     return destio
 
 
+def get_asset(path: str) -> Optional[str]:
+    """Returns the path of the assets <path>, None if it does not exists."""
+    path = os.path.join(settings.ASSETS_ROOT, os.path.join(path, 'data/content.tgz'))
+    return path if os.path.isfile(path) else None
+
 def get_env(env: str) -> Optional[str]:
     """Returns the path of the environment <env>, None if it does not exists."""
     path = os.path.join(settings.ENVIRONMENT_ROOT, f"{env}.tgz")
@@ -94,6 +99,42 @@ def extract(env: str, path: str) -> Optional[BinaryIO]:
     
     return file
 
+
+def execute_asset(request: HttpRequest, config: dict) -> str:
+
+    body_env = request.FILES.get("environment")
+
+    asset_path = config.get("path")
+    if asset_path is None:
+        raise HTTPExceptions.BAD_REQUEST.with_content("Missing argument 'path'")
+    
+    if not isinstance(asset_path, str):
+        raise HTTPExceptions.BAD_REQUEST.with_content(
+            f'result_path must be a string, not {type(asset_path)}')
+    
+    asset_env = get_asset(asset_path)
+    if not asset_env:
+        raise HTTPExceptions.NOT_FOUND.with_content(
+                f"No asset on '{asset_path}' found"
+            )
+
+    asset_env = open(asset_env, "rb")
+
+    env = merge_tar_gz(body_env, asset_env)
+
+    if body_env is not None:
+        body_env.close()
+    if asset_env is not None:
+        asset_env.close()
+
+    path = os.path.join(settings.ASSETS_ROOT, os.path.join(asset_path, 'tmp/result.tgz'))
+    if env is not None:
+        with open(path, "w+b") as f:
+            f.write(env.read())
+    else:
+        tarfile.open(path, "x:gz").close()
+    
+    return path
 
 def executed_env(request: HttpRequest, config: dict) -> str:
     """Returns the UUID4 corresponding to the environment that will be used in the execution.
