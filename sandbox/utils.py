@@ -72,7 +72,7 @@ def merge_tar_gz(a: Optional[BinaryIO], b: Optional[BinaryIO]) -> Optional[Binar
 
 def get_asset(path: str) -> Optional[str]:
     """Returns the path of the assets <path>, None if it does not exists."""
-    path = os.path.join(settings.ASSETS_ROOT, os.path.join(path, 'data/content.tgz'))
+    path = os.path.join(settings.ASSETS_ROOT, os.path.join(path, 'tmp/content.tgz'))
     return path if os.path.isfile(path) else None
 
 def get_env(env: str) -> Optional[str]:
