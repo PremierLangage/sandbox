@@ -142,6 +142,15 @@ class Sandbox:
             for name in os.listdir(self.envpath):
                 tar.add(os.path.join(self.envpath, name), arcname=name)
     
+    def extract_environment(self, export):
+        path = os.path.join(settings.ASSETS_ROOT, export)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        if os.path.isfile(path):
+            os.remove(path)
+
+        with tarfile.open(path, "w:gz") as tar:
+            for name in os.listdir(self.envpath):
+                tar.add(os.path.join(self.envpath, name), arcname=name)
     
     def reset(self):
         """Reset a given container by killing it and overwriting it's instance with

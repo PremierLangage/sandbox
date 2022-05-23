@@ -72,7 +72,7 @@ def merge_tar_gz(a: Optional[BinaryIO], b: Optional[BinaryIO]) -> Optional[Binar
 
 def get_asset(path: str) -> Optional[str]:
     """Returns the path of the assets <path>, None if it does not exists."""
-    path = os.path.join(settings.ASSETS_ROOT, os.path.join(path, 'tmp/content.tgz'))
+    path = os.path.join(settings.ASSETS_ROOT, os.path.join(path, 'content.tgz'))
     return path if os.path.isfile(path) else None
 
 def get_env(env: str) -> Optional[str]:
@@ -104,7 +104,7 @@ def execute_asset(request: HttpRequest, config: dict) -> str:
 
     body_env = request.FILES.get("environment")
 
-    asset_path = config.get("path")
+    asset_path = config.get('path')
     if asset_path is None:
         raise HTTPExceptions.BAD_REQUEST.with_content("Missing argument 'path'")
     
@@ -208,6 +208,33 @@ def parse_save(config: dict) -> bool:
         return config["save"]
     return False
 
+def parse_export(config: dict) -> Optional[str]:
+    """Check the validity of 'export' in the request and return it, returns an empty str
+    if it is not present."""
+    if 'export' in config:
+        if not isinstance(config['export'], str):
+            raise HTTPExceptions.BAD_REQUEST.with_content(
+                f'export must be a str, not {type(config["export"])}')
+        export = os.path.join(settings.ASSETS_ROOT, config['export'])
+        os.makedirs(os.path.dirname(export), exist_ok=True)
+        if os.path.isfile(export):
+            os.remove(export)
+        return export
+    return None
+
+def parse_path(config: dict) -> str:
+    if 'path' not in config:
+        raise HTTPExceptions.BAD_REQUEST.with_content(
+            "Missing argument 'path'")
+    if not isinstance(config['path'], str):
+        raise HTTPExceptions.BAD_REQUEST.with_content(
+            f'path must be a str, not {type(config["path"])}')
+
+    path = os.path.join(settings.ASSETS_ROOT, config['path'])
+    if not os.path.isfile(path):
+        raise HTTPExceptions.BAD_REQUEST.with_content(
+            f"Given <path>:{path} is not valid, file not present.")
+    return path
 
 def container_cpu_count() -> int:
     """Return the number of cpu that a container can use."""

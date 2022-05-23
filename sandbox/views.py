@@ -160,16 +160,16 @@ class AssetsView(View):
         except json.JSONDecodeError as e:
             return HttpResponseBadRequest(f"'config' json is invalid - {e}")
 
-        asset = utils.execute_asset(request, config)
         commands = Command.from_config(config)
+        path = utils.parse_path(config)
+        export = utils.parse_export(config)
         result_path = utils.parse_result_path(config)
-        save = utils.parse_save(config)
         
         logger.debug(f"Parsing config request took : {time.time() - start} seconds")
         
         sandbox = Sandbox.acquire()
         try:
-            response = Assetor(commands, sandbox, asset, result_path, save).execute()
+            response = Assetor(commands, sandbox, path, export, result_path).execute()
             logger.debug(f"Total execute request took : {time.time() - start} seconds")
             return JsonResponse(response)
         finally:
