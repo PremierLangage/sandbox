@@ -13,3 +13,4 @@ scipy
 prettytable
 pandas
 pylama
+pylint
