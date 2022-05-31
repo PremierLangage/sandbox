@@ -216,7 +216,7 @@ ENVIRONMENT_EXPIRATION = DAY
 # https://docker-py.readthedocs.io/en/stable/containers.html and
 # https://docs.docker.com/config/containers/resource_constraints/ for more information about
 # every argument
-DOCKER_COUNT = 20
+DOCKER_COUNT = 3
 DOCKER_VOLUME_HOST_BASEDIR = os.path.join(BASE_DIR, 'containers_env')
 DOCKER_PARAMETERS = {
     "image":            "pl:latest",
