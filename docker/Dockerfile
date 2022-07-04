@@ -46,7 +46,8 @@ RUN wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py -O /tmp/get
 RUN python3 /tmp/get-pip.py
 RUN pip3 --no-cache-dir install wheel
 RUN pip3 --no-cache-dir install \
-    jinja2 \
+    "markupsafe==2.0.1" \
+    "jinja2==2.10" \
     "jsonpickle<1.4" \
     sympy \
     matplotlib \
