@@ -246,7 +246,7 @@ class ExecutorTestCase(SandboxTestCase):
         s.release()
         self.assertEqual(SandboxErrCode.TIMEOUT, result["status"])
         self.assertGreater(len(result["execution"]), 1)
-        self.assertLessEqual(len(result["execution"]), 6)
+        self.assertLessEqual(len(result["execution"]), 10)
     
     
     def test_execute_failing(self):
