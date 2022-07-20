@@ -9,7 +9,7 @@
 
 ## Requirements:
 
-- [`python >= 3.8`](https://www.python.org/)
+- [`3.8 <= python <= 3.9.10`](https://www.python.org/)
 - [`pip3`](https://pip.pypa.io/en/stable/installing/)
 - [`docker`](https://docs.docker.com/engine/installation/linux/docker-ce/debian/)
 
