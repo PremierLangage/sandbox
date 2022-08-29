@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 \
     libasound2-data \
     locales \
+    curl \
     wget \
     ca-certificates \
     build-essential \
@@ -37,6 +38,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get autoclean \
     && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
+
+# Installing rust
+RUN curl --proto '=https' --tlsv1.3 https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Set python3 as default
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 2
