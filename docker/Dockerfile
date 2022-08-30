@@ -34,10 +34,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libbsd-dev \
     sqlite \
     r-base \
+    nodejs \
+    npm \
+    lua5.3 \
+    golang-go \
+    scala \
+    ghc ghc-prof ghc-doc \
     && apt-get clean \
     && apt-get autoclean \
     && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
+    
 
 # Installing rust
 RUN curl --proto '=https' --tlsv1.3 https://sh.rustup.rs -sSf | sh -s -- -y
