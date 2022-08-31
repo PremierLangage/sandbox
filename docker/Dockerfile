@@ -50,6 +50,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl --proto '=https' --tlsv1.3 https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
+# Installing typescript
+RUN npm install -g typescript
+
 # Set python3 as default
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 2
 
