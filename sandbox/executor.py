@@ -193,11 +193,11 @@ class Executor:
             "status":     status,
             "execution":  execution,
             "total_time": time.time() - start,
+            "environment": self.env_uuid,
         }
         
         if self.save:
             expire = timezone.now() + timedelta(seconds=settings.ENVIRONMENT_EXPIRATION)
-            response["environment"] = self.env_uuid
             response["expire"] = expire.isoformat()
             # Remove the one used by the container as it will cause an error in extract_env if the
             # destination already exists.

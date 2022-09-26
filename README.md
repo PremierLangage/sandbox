@@ -75,7 +75,7 @@ Body must be encoded in `form_data` and must contains a json containing informat
 * `result_path` - Path to the file from which the `result` field of the response will be extracted. if `result_path` is absent from the request, `result` will not be present in the response.
 * `environ` - A list of environments variables  as al ist of objects containing the var name and its value.
 * `environment` - Use this environment stored in the sandbox as a base environment. File present in the body's tgz will be added to this environment (file with the same name are overwritten).
-* `save` - Boolean indicating if the resulting environment should be saved. If `true`, the environment's *UUID* will be sent in the response in the field `environment`. It'll be kept on the sandbox for a time define in the sandbox's settings. That expiration date will be sent in the response  in the `expire` field (ISO 8601 format). If the field `save` is missing, it is assumed to be `false`.
+* `save` - Boolean indicating if the resulting environment should be saved. It'll be kept on the sandbox for a time define in the sandbox's settings. That expiration date will be sent in the response  in the `expire` field (ISO 8601 format). If the field `save` is missing, it is assumed to be `false`.
 
 The body can also contain an *Optionnal* tar archive compressed with gzip (`.tgz` or `.tar.gz`) of your environment of execution.
 If field `environment` is present in the *JSON*, the file present in the body's environment will be added to the one in the sandbox, overwritting file with the same name.
