@@ -200,7 +200,7 @@ class ExecutorTestCase(SandboxTestCase):
         s.release()
         self.assertEqual(0, result["status"])
         self.assertEqual(1, len(result["execution"]))
-        self.assertNotIn("environment", result)
+        self.assertIn("environment", result)
         self.assertEqual("Hello World !\n", result["result"])
         
         real_total = sum(r["time"] for r in result["execution"])
