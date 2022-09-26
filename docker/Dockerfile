@@ -57,24 +57,11 @@ RUN npm install -g typescript
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 2
 
 # Installing pip3 and python's requirements
-RUN wget --no-check-certificate https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py
-RUN python3 /tmp/get-pip.py
-RUN pip3 --no-cache-dir install wheel
-RUN pip3 --no-cache-dir install \
-    "markupsafe==2.0.1" \
-    "jinja2==2.10" \
-    "jsonpickle<1.4" \
-    sympy \
-    matplotlib \
-    automata-lib \
-    fado \
-    tr-greenery \
-    wimsapi \
-    graphviz \
-    mpld3 \
-    networkx \
-    scipy \
-    prettytable
+ADD requirements.txt .
+RUN wget --progress=dot:giga --no-check-certificate https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py &&\
+    python3 /tmp/get-pip.py &&\
+    pip3 --no-cache-dir install wheel &&\
+    pip3 --no-cache-dir install -r requirements.txt
 
 
 # Installing Java 11
