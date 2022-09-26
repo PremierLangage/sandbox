@@ -1,0 +1,17 @@
+markupsafe==2.0.1
+jinja2==2.10
+jsonpickle<1.4
+sympy
+matplotlib
+automata-lib
+fado
+tr-greenery
+wimsapi
+graphviz
+mpld3
+networkx
+scipy
+prettytable
+pandas
+pylama
+pylint
