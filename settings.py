@@ -37,6 +37,7 @@ ALLOWED_HOSTS = ['127.0.0.1']
 # Application definition
 INSTALLED_APPS = [
     'sandbox',
+    'sandbox_api',
 ]
 
 MIDDLEWARE = [
@@ -246,3 +247,7 @@ from sandbox.containers import initialise_containers  # noqa
 
 INITIALISING_THREAD = threading.Thread(target=initialise_containers)
 INITIALISING_THREAD.start()
+
+# Directories
+# DIRECTORIES_ROOT = os.path.join(BASE_DIR, "directories")
+DIRECTORIES_ROOT = os.path.abspath(os.path.join(BASE_DIR, "../shared/directories"))
