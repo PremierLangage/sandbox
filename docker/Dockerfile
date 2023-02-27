@@ -12,7 +12,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 \
     libasound2-data \
     locales \
-    curl \
     wget \
     ca-certificates \
     build-essential \
@@ -45,9 +44,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
     
-
 # Installing rust
-RUN curl --proto '=https' --tlsv1.3 https://sh.rustup.rs -sSf | sh -s -- -y
+RUN wget --quiet --method GET --output-document --ciphers="NORMAL:+VERS-TLS1.3" --https-only -O - https://sh.rustup.rs/  | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Installing typescript
