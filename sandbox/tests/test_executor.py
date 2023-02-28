@@ -228,7 +228,7 @@ class ExecutorTestCase(SandboxTestCase):
         self.assertEqual(1, len(result["execution"]))
     
     
-    @override_settings(EXECUTE_TIMEOUT=1)
+    @override_settings(EXECUTE_TIMEOUT=1.0)
     def test_execute_timeout_settings(self):
         s = Sandbox.acquire()
         e = Executor(
@@ -246,7 +246,7 @@ class ExecutorTestCase(SandboxTestCase):
         s.release()
         self.assertEqual(SandboxErrCode.TIMEOUT, result["status"])
         self.assertGreater(len(result["execution"]), 1)
-        self.assertLessEqual(len(result["execution"]), 10)
+        self.assertLessEqual(len(result["execution"]), 6)
     
     
     def test_execute_failing(self):
