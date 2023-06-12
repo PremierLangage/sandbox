@@ -15,3 +15,5 @@ prettytable
 pandas
 pylama
 pylint
+sqlalchemy
+psycopg2-binary
