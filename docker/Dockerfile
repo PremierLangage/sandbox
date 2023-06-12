@@ -5,7 +5,7 @@ LABEL maintainer="coumes.quentin@gmail.com"
 ENV DEBIAN_FRONTEND noninteractive
 
 # Installing base requirements
-RUN echo 'deb http://deb.debian.org/debian stretch-backports main' > /etc/apt/sources.list.d/backports.list
+RUN echo 'deb http://archive.debian.org/debian stretch-backports main' > /etc/apt/sources.list.d/backports.list
 RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     gnupg2 \
@@ -75,7 +75,8 @@ ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 ENV LC_TYPE en_US.UTF-8
 RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
-RUN locale-gen "en_US.UTF-8" && dpkg-reconfigure locales
+RUN echo "fr_FR.UTF-8 UTF-8" >> /etc/locale.gen
+RUN locale-gen "en_US.UTF-8" && locale-gen "fr_FR.UTF-8" && dpkg-reconfigure locales
 
 WORKDIR /home/student
 RUN chmod -R a+rwx /home/student
