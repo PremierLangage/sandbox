@@ -5,7 +5,7 @@ LABEL maintainer="coumes.quentin@gmail.com"
 ENV DEBIAN_FRONTEND noninteractive
 
 # Installing base requirements
-RUN echo 'deb http://archive.debian.org/debian stretch-backports main' > /etc/apt/sources.list.d/backports.list
+RUN echo 'deb http://deb.debian.org/debian buster-backports main' > /etc/apt/sources.list.d/backports.list
 RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     gnupg2 \
