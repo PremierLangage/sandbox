@@ -220,7 +220,8 @@ DOCKER_PARAMETERS = {
     "mem_limit":        "100m",
     "memswap_limit":    "200m",
     # "network_mode":     "none", #
-    # "network_disabled": True,   # Uncomment these lines to disable network access /!\ WARNING /!\ Uncompatible with usage of sandbox database.
+    # "network_disabled": True,   # Uncomment these lines to disable network access
+    #  /!\ WARNING /!\ Uncompatible with usage of sandbox database.
     # "storage_opt":      {},
     "tty":              True,
     "ulimits":          [
