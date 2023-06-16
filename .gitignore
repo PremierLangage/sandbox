@@ -5,6 +5,7 @@ config.py
 containers_env/
 environments/
 /libs/
+activity_db/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

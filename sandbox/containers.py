@@ -67,6 +67,45 @@ def initialise_containers():
 
     purging_containers()
 
+    # Create the database if not exists.
+    logger.info("Initializing database.")
+    if not (settings.ACTIVITY_DATABASE_OPTIONS["NAME"] in [i.name for i in docker.from_env().containers.list(all=True)]):
+        logger.info("Initializing database really ! . " + settings.ACTIVITY_DATABASE_OPTIONS["NAME"])
+        docker.from_env().containers.run(
+            name=settings.ACTIVITY_DATABASE_OPTIONS["NAME"],
+            volumes={
+                settings.ACTIVITY_DATABASE_DIR: {
+                    "bind": "/var/lib/postgresql/data",
+                    "mode": "rw",
+                },
+            },
+            user=os.getuid(),
+            image="postgres:15",
+            environment={
+                "POSTGRES_USER": settings.ACTIVITY_DATABASE_OPTIONS["USER"],
+                "POSTGRES_PASSWORD": settings.ACTIVITY_DATABASE_OPTIONS["PASSWORD"],
+                "POSTGRES_DB": settings.ACTIVITY_DATABASE_OPTIONS["NAME"],
+            },
+            detach=True,
+            restart_policy={"Name": "always"},
+        )
+
+    # Create the networks if not exists.
+    for i in range(settings.DOCKER_COUNT):
+        name = f"c{i}"
+        if not (name in [i.name for i in docker.from_env().networks.list()]):
+            logger.info(f"Initializing network {name}.")
+            docker.from_env().networks.create(name=name, internal=True)
+    
+    # Connecting the networks to the database.
+    for i in range(settings.DOCKER_COUNT):
+        name = f"c{i}"
+        if not (settings.ACTIVITY_DATABASE_OPTIONS["NAME"] in [i.name for i in docker.from_env().networks.get(name).containers]):
+            logger.info(f"Connecting network {name} to database.")
+            docker.from_env().networks.get(name).connect(
+                settings.ACTIVITY_DATABASE_OPTIONS["NAME"]
+            )
+
     # Create containers.
     logger.info("Initializing containers.")
 
