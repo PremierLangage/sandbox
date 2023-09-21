@@ -114,7 +114,8 @@ def initialise_containers():
             )
         except APIError or HTTPError:
             logger.warn(
-                f"Could not connect network {name} to {settings.ACTIVITY_DATABASE_OPTIONS['NAME']}. "
+                f"Could not connect network {name} to \
+                {settings.ACTIVITY_DATABASE_OPTIONS['NAME']}. "
             )
 
     # Create containers.
@@ -126,7 +127,8 @@ def initialise_containers():
         c = Sandbox(f"c{i}", i)
         CONTAINERS.put(c)
         logger.info(
-            f"Container {c.container.short_id} ({i + 1}/{settings.DOCKER_COUNT}) initialized."
+            f"Container {c.container.short_id} \
+            ({i + 1}/{settings.DOCKER_COUNT}) initialized."
         )
         i += 1
 
