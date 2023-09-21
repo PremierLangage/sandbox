@@ -14,8 +14,9 @@ import time
 import docker
 from django.conf import settings
 from django_http_exceptions import HTTPExceptions
-from docker.errors import DockerException
+from docker.errors import APIError
 from docker.models.containers import Container
+from requests.exceptions import HTTPError
 
 
 logger = logging.getLogger(__name__)
@@ -106,13 +107,14 @@ def initialise_containers():
     # Connecting the networks to the database.
     for i in range(settings.DOCKER_COUNT):
         name = f"c{i}"
-        if not (
-            settings.ACTIVITY_DATABASE_OPTIONS["NAME"]
-            in [i.name for i in docker.from_env().networks.get(name).containers]
-        ):
+        try:
             logger.info(f"Connecting network {name} to database.")
             docker.from_env().networks.get(name).connect(
                 settings.ACTIVITY_DATABASE_OPTIONS["NAME"]
+            )
+        except APIError or HTTPError:
+            logger.warn(
+                f"Could not connect network {name} to {settings.ACTIVITY_DATABASE_OPTIONS['NAME']}. "
             )
 
     # Create containers.
