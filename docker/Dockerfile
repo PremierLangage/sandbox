@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libbsd-dev \
     sqlite \
     r-base \
+    nasm \
     && apt-get clean \
     && apt-get autoclean \
     && apt-get autoremove \
