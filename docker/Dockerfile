@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     ca-certificates \
     build-essential \
+    nasm \
     libssl-dev \
     openssl \
     unzip \
@@ -28,15 +29,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     perl-doc \
     openjdk-11-jdk \
     python3-distutils \
+    python3-dev \
     python2 \
     postgresql \
     libbsd-dev \
     sqlite \
     r-base \
+    nodejs \
+    npm \
+    lua5.3 \
+    golang-go \
+    scala \
+    ghc ghc-prof ghc-doc \
     && apt-get clean \
     && apt-get autoclean \
     && apt-get autoremove \
     && rm -rf /var/lib/apt/lists/*
+    
+# Installing rust
+RUN wget --quiet --method GET --output-document --ciphers="NORMAL:+VERS-TLS1.3" --https-only -O - https://sh.rustup.rs/  | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Installing typescript
+RUN npm install -g typescript
 
 # Set python3 as default
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 2
@@ -48,10 +63,9 @@ RUN wget --progress=dot:giga --no-check-certificate https://bootstrap.pypa.io/ge
     pip3 --no-cache-dir install wheel &&\
     pip3 --no-cache-dir install -r requirements.txt
 
-
 # Installing Java 11
-RUN update-alternatives --install /usr/bin/java java  /usr/lib/jvm/java-11-openjdk-amd64/bin/java 2
-RUN update-alternatives --install /usr/bin/javac javac  /usr/lib/jvm/java-11-openjdk-amd64/bin/javac 2
+RUN update-alternatives --install /usr/bin/java java  /usr/lib/jvm/java-11-openjdk-$(arch | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)/bin/java 2
+RUN update-alternatives --install /usr/bin/javac javac  /usr/lib/jvm/java-11-openjdk-$(arch | sed s/aarch64/arm64/ | sed s/x86_64/amd64/)/bin/javac 2
 RUN mkdir /utils
 RUN mkdir /utils/libs/
 ENV PATH="/utils/libs/:${PATH}"
