@@ -18,7 +18,7 @@ if ! hash python3; then
     exit 1
 fi
 
-ver=$(python3 --version 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
+ver=$(python3 -c 'import sys; print("".join(map(str, sys.version_info[:2])))')
 if [[ "$ver" -lt "37" ]]; then
     echo "python3:$Red ERROR - $(python3 -V | tr -d '\n') found, should be at least 3.7 (see: https://www.python.org/).$Color_Off" >&2
     exit 1
@@ -27,7 +27,7 @@ echo "python3:$Green OK !$Color_Off"
 
 # Checking if Docker is installed
 if ! hash docker 2> /dev/null; then
-    echo "docker:$Red ERROR - Docker must be installed (see: https://docs.docker.com/engine/installation/linux/docker-ce/debian/).$Color_Off" >&2
+    echo "docker:$Red ERROR - Docker must be installed (see: http:s://docs.docker.com/engine/installation/).$Color_Off" >&2
     exit 1
 fi
 echo "docker:$Green OK !$Color_Off"
@@ -60,7 +60,7 @@ echo "$Yellow"
 echo "Creating container image...$Color_Off"
 docker ps -a | awk '{ print $1,$2 }' | grep pl:latest | awk '{print $1 }' | xargs -I {} docker stop {} > /dev/null
 docker rmi -f pl:latest &> /dev/null || true
-docker build -t pl:latest docker/ || {
+docker buildx build --platform linux/amd64 -t pl:latest docker/ || {
     echo -n "$Red" >&2
     echo "ERROR: 'docker build -t pl:latest docker/' failed." >&2
     echo "If getting: 'container: Error response from daemon: grpc: the connection is unavailable.'" >&2
