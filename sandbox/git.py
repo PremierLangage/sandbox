@@ -30,12 +30,14 @@ def clone(alias: str, url: str, path: str | None = None) -> int:
         os.chdir(cwd)
 
 
-def pull(alias: str, url: str) -> int:
+def pull(alias: str, url: str, path: str | None = None) -> int:
     """Execute a 'git pull <url> master' in the repository of the given alias inside
     EXTERNAL_LIBRARIES_ROOT returning the command's status code."""
     cwd = os.getcwd()
     try:
-        os.chdir(os.path.join(settings.EXTERNAL_LIBRARIES_ROOT, alias))
+        if path is None:
+            path = settings.EXTERNAL_LIBRARIES_ROOT
+        os.chdir(os.path.join(path, alias))
         cmd = f"GIT_TERMINAL_PROMPT=0 git pull {url} master"
         p = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True

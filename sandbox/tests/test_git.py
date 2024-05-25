@@ -5,14 +5,13 @@ import uuid
 from unittest import TestCase
 from sandbox import git
 
-
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "sandbox.settings")
 
 TEST_EXTERNAL_LIBRARIES_ROOT = os.path.join("/tmp/sandbox/", str(uuid.uuid4()))
 DUMMY_GIT_URL = "https://github.com/github/practice"
 
 
-class CloneTestCase(TestCase):
+class GitTestCase(TestCase):
     def setUp(self):
         super().setUp()
         os.makedirs(TEST_EXTERNAL_LIBRARIES_ROOT)
@@ -20,6 +19,9 @@ class CloneTestCase(TestCase):
     def tearDown(self):
         super().tearDown()
         shutil.rmtree(TEST_EXTERNAL_LIBRARIES_ROOT)
+
+
+class CloneTestCase(GitTestCase):
 
     def test_clone_ok(self):
         path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
@@ -38,9 +40,14 @@ class CloneTestCase(TestCase):
         self.assertFalse(os.path.isdir(os.path.join(path, ".git")))
 
 
-class PullTestCase(TestCase):
+class PullTestCase(GitTestCase):
     def test_pull_ok(self):
-        pass
+        git.clone("dummy", DUMMY_GIT_URL)
+        self.assertEqual(0, git.pull("dummy", DUMMY_GIT_URL))
 
     def test_pull_fail(self):
-        pass
+        path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
+        os.mkdir(path)
+        self.assertNotEqual(
+            0, git.pull("dummy", DUMMY_GIT_URL, TEST_EXTERNAL_LIBRARIES_ROOT)
+        )
