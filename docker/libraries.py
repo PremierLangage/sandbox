@@ -2,7 +2,6 @@ import json
 import os
 import stat
 import subprocess
-import sys
 
 
 devnull = open(os.devnull, "w")
@@ -15,15 +14,20 @@ for line in subprocess.check_output(commands, stderr=devnull).decode().split("\n
     system_packages[lib] = version
 
 python_modules = dict()
-for line in subprocess.check_output(["/usr/local/bin/pip", "freeze"],
-                                    stderr=devnull).decode().split("\n")[:-1]:
+for line in (
+    subprocess.check_output(["/usr/local/bin/pip", "freeze"], stderr=devnull)
+    .decode()
+    .split("\n")[:-1]
+):
     lib, version = line.split("==")
     python_modules[lib] = version
 
 c_libs = dict()
 lines = filter(
-    lambda l: l.startswith("\t"),
-    subprocess.check_output(["/sbin/ldconfig", "-vN"], stderr=devnull).decode().split("\n")
+    lambda line: line.startswith("\t"),
+    subprocess.check_output(["/sbin/ldconfig", "-vN"], stderr=devnull)
+    .decode()
+    .split("\n"),
 )
 for line in lines:
     lib, version = line.split()[2].split(".so")
@@ -33,8 +37,11 @@ for line in lines:
 perl_modules = dict()
 commands = ["/bin/bash", "-c", "yes | /usr/bin/cpan -l"]
 subprocess.check_output(commands, stderr=devnull)
-for line in subprocess.check_output(["/usr/bin/cpan", "-l"], stderr=devnull).decode().split("\n")[
-            1:-1]:
+for line in (
+    subprocess.check_output(["/usr/bin/cpan", "-l"], stderr=devnull)
+    .decode()
+    .split("\n")[1:-1]
+):
     lib, version = line.split("\t")
     if version == "undef":
         version = "?"
@@ -48,12 +55,16 @@ for path in os.environ["PATH"].split(":"):
         if os.path.isfile(file_path) and os.stat(file_path).st_mode & executable:
             bins.append(name)
 
-print(json.dumps({
-    "libraries": {
-        "system": dict(sorted(system_packages.items())),
-        "python": dict(sorted(python_modules.items())),
-        "perl":   dict(sorted(perl_modules.items())),
-        "c":      dict(sorted(c_libs.items())),
-    },
-    "bin":       sorted(bins),
-}))
+print(
+    json.dumps(
+        {
+            "libraries": {
+                "system": dict(sorted(system_packages.items())),
+                "python": dict(sorted(python_modules.items())),
+                "perl": dict(sorted(perl_modules.items())),
+                "c": dict(sorted(c_libs.items())),
+            },
+            "bin": sorted(bins),
+        }
+    )
+)
