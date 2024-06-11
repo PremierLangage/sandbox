@@ -14,6 +14,8 @@ import os
 
 from pathlib import Path
 
+from docker.types import Ulimit
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -39,6 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "sandbox",
 ]
 
 MIDDLEWARE = [
@@ -137,3 +140,41 @@ EXTERNAL_LIBRARIES = [
 EXTERNAL_LIBRARIES_ROOT = os.path.join(BASE_DIR, "libs")
 if not os.path.isdir(EXTERNAL_LIBRARIES_ROOT):
     os.makedirs(EXTERNAL_LIBRARIES_ROOT)
+
+
+#
+# DOCKER_COUNT (int) – Max number of containers running simultaneously.
+# DOCKER_VOLUME_MEM_LIMIT (int) – Limit of memory usage for volumes (in MB).
+# DOCKER_VOLUME_HOST_BASEDIR (str) – Path to the root directory containing each directory shared
+#       with the containers. For each container, a directory named after the container's name is
+#       created inside DOCKER_VOLUME_HOST_BASEDIR.
+#
+# DOCKER_PARAMETERS (dict) - kwargs given to the Containers constructor. See
+# https://docker-py.readthedocs.io/en/stable/containers.html and
+# https://docs.docker.com/config/containers/resource_constraints/ for more information about
+# every argument
+
+
+DOCKER_COUNT = 5
+DOCKER_VOLUME_HOST_BASEDIR = os.path.join(BASE_DIR, "containers_env")
+DOCKER_PARAMETERS = {
+    "image": "pl:latest",
+    "auto_remove": True,
+    "cpu_period": 1000,
+    "cpu_shares": 1024,
+    "cpu_quota": 0,
+    "cpuset_cpus": "0",
+    "detach": True,
+    "environment": {},
+    "mem_limit": "100m",
+    "memswap_limit": "200m",
+    "network_mode": "none",
+    "network_disabled": True,
+    # "storage_opt":      {},
+    "tty": True,
+    "ulimits": [Ulimit(name="core", soft=0, hard=0)],
+}
+
+
+# Time before returning a '503: Service Unavailable' when waiting for a container.
+WAIT_FOR_CONTAINER_DURATION = 2
