@@ -82,6 +82,18 @@ RUN wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | 
 
 ENV PATH="/usr/local/nvm/versions/node/${NODE_VERSION}/bin:${PATH}"
 
+# Installing Java 22 
+RUN wget --progress=dot:giga https://download.oracle.com/java/22/latest/jdk-22_linux-$(arch | sed s/x86_64/x64/)_bin.tar.gz -O /tmp/jdk-22_linux_bin.targz &&\
+    mkdir jdk-22-oracle &&\
+    tar -xzvf /tmp/jdk-22_linux_bin.targz -C jdk-22-oracle --strip-components=1 &&\
+    cp -r jdk-22-oracle /usr/lib/jvm/ &&\
+    rm /tmp/jdk-22_linux_bin.targz
+RUN update-alternatives --install /usr/bin/java java  /usr/lib/jvm/jdk-22-oracle/bin/java 3
+RUN update-alternatives --install /usr/bin/javac javac  /usr/lib/jvm/jdk-22-oracle/bin/javac 3
+
+# Download Junit standalone jar
+RUN wget --progress=dot:giga https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.10.3/junit-platform-console-standalone-1.10.3.jar -O /utils/junit-platform-console-standalone.jar
+
 # Cleaning /tmp
 RUN rm -Rf /tmp/*
 
