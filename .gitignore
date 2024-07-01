@@ -121,3 +121,6 @@ dmypy.json
 
 #visual studio code editor
 .vscode/*
+
+# node_modules
+docker/node_modules
