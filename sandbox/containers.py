@@ -14,7 +14,7 @@ import time
 import docker
 from django.conf import settings
 from django_http_exceptions import HTTPExceptions
-from docker.errors import APIError
+from docker.errors import APIError, DockerException
 from docker.models.containers import Container
 from requests.exceptions import HTTPError
 
