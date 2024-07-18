@@ -18,16 +18,21 @@ if ! hash python3; then
     exit 1
 fi
 
-ver=$(python3 --version 2>&1 | sed 's/.* \([0-9]\).\([0-9]\).*/\1\2/')
-if [[ "$ver" -lt "37" ]]; then
+ver=$(python3 --version 2>&1 | sed 's/.* \([0-9]\).\([0-9][0-9]*\).*/\1\2/')
+if (( $(echo "$ver < 37" | bc -l) )); then
     echo "python3:$Red ERROR - $(python3 -V | tr -d '\n') found, should be at least 3.7 (see: https://www.python.org/).$Color_Off" >&2
     exit 1
 fi
 echo "python3:$Green OK !$Color_Off"
 
-# Checking if Docker is installed
+# Checking if Docker >= 23 is installed
 if ! hash docker 2> /dev/null; then
     echo "docker:$Red ERROR - Docker must be installed (see: https://docs.docker.com/engine/installation/linux/docker-ce/debian/).$Color_Off" >&2
+    exit 1
+fi
+ver=$(docker --version 2>&1 | sed 's/.* \([0-9][0-9]\).*/\1/')
+if [[ "$ver" -lt "23" ]]; then
+    echo "docker:$Red ERROR - $(docker --version | tr -d '\n') found, should be at least 23 (see: https://docs.docker.com/engine/installation/linux/docker-ce/debian/).$Color_Off" >&2
     exit 1
 fi
 echo "docker:$Green OK !$Color_Off"

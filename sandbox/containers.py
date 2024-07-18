@@ -14,8 +14,9 @@ import time
 import docker
 from django.conf import settings
 from django_http_exceptions import HTTPExceptions
-from docker.errors import DockerException
+from docker.errors import APIError, DockerException
 from docker.models.containers import Container
+from requests.exceptions import HTTPError
 
 
 logger = logging.getLogger(__name__)
@@ -32,22 +33,22 @@ def create_container(name: str) -> Container:
                 "bind": "/home/student",
                 "mode": "rw",
             },
-            settings.EXTERNAL_LIBRARIES_ROOT:                        {
+            settings.EXTERNAL_LIBRARIES_ROOT: {
                 "bind": "/utils/libs/",
                 "mode": "ro",
             },
         },
         user=os.getuid(),
         **settings.DOCKER_PARAMETERS,
-        network=name
+        network=name,
     )
 
 
 def purging_containers():
     """Delete running container created from DOCKER_PARAMETERS["image"]"""
-    to_del = docker.from_env().containers.list(all=True, filters={
-        "ancestor": settings.DOCKER_PARAMETERS["image"]
-    })
+    to_del = docker.from_env().containers.list(
+        all=True, filters={"ancestor": settings.DOCKER_PARAMETERS["image"]}
+    )
     for c in to_del:
         try:
             c.remove(force=True)
@@ -67,6 +68,56 @@ def initialise_containers():
 
     purging_containers()
 
+    # Create the database if not exists.
+    logger.info("Initializing database.")
+    if not (
+        settings.ACTIVITY_DATABASE_OPTIONS["NAME"]
+        in [i.name for i in docker.from_env().containers.list(all=True)]
+    ):
+        logger.info(
+            "Initializing database really ! . "
+            + settings.ACTIVITY_DATABASE_OPTIONS["NAME"]
+        )
+        docker.from_env().containers.run(
+            name=settings.ACTIVITY_DATABASE_OPTIONS["NAME"],
+            volumes={
+                settings.ACTIVITY_DATABASE_DIR: {
+                    "bind": "/var/lib/postgresql/data",
+                    "mode": "rw",
+                },
+            },
+            user=os.getuid(),
+            image="postgres:15",
+            environment={
+                "POSTGRES_USER": settings.ACTIVITY_DATABASE_OPTIONS["USER"],
+                "POSTGRES_PASSWORD": settings.ACTIVITY_DATABASE_OPTIONS["PASSWORD"],
+                "POSTGRES_DB": settings.ACTIVITY_DATABASE_OPTIONS["NAME"],
+            },
+            detach=True,
+            restart_policy={"Name": "always"},
+        )
+
+    # Create the networks if not exists.
+    for i in range(settings.DOCKER_COUNT):
+        name = f"c{i}"
+        if not (name in [i.name for i in docker.from_env().networks.list()]):
+            logger.info(f"Initializing network {name}.")
+            docker.from_env().networks.create(name=name, internal=True)
+
+    # Connecting the networks to the database.
+    for i in range(settings.DOCKER_COUNT):
+        name = f"c{i}"
+        try:
+            logger.info(f"Connecting network {name} to database.")
+            docker.from_env().networks.get(name).connect(
+                settings.ACTIVITY_DATABASE_OPTIONS["NAME"]
+            )
+        except APIError or HTTPError:
+            logger.warn(
+                f"Could not connect network {name} to \
+                {settings.ACTIVITY_DATABASE_OPTIONS['NAME']}. "
+            )
+
     # Create containers.
     logger.info("Initializing containers.")
 
@@ -76,7 +127,9 @@ def initialise_containers():
         c = Sandbox(f"c{i}", i)
         CONTAINERS.put(c)
         logger.info(
-            f"Container {c.container.short_id} ({i + 1}/{settings.DOCKER_COUNT}) initialized.")
+            f"Container {c.container.short_id} \
+            ({i + 1}/{settings.DOCKER_COUNT}) initialized."
+        )
         i += 1
 
     logger.info("Containers initialized.")
@@ -84,7 +137,6 @@ def initialise_containers():
 
 class Sandbox:
     """Wrap a docker's container."""
-
 
     def __init__(self, name, index):
         path = os.path.join(settings.DOCKER_VOLUME_HOST_BASEDIR, name)
@@ -99,25 +151,26 @@ class Sandbox:
         self.to_delete = False
         self.envpath = os.path.join(settings.DOCKER_VOLUME_HOST_BASEDIR, self.name)
 
-
     @staticmethod
     def available() -> int:
         """Return the approximative number of available container."""
         return CONTAINERS.qsize()
 
-
     @staticmethod
-    def acquire() -> 'Sandbox':
+    def acquire() -> "Sandbox":
         """Try to acquire a container for <settings.WAIT_FOR_CONTAINER_DURATION> seconds.
 
-        Raises HTTPExceptions.SERVICE_UNAVAILABLE if no container were available in time."""
+        Raises HTTPExceptions.SERVICE_UNAVAILABLE if no container were available in time.
+        """
         global CONTAINERS
 
         start = time.time()
         try:
             cw = CONTAINERS.get(timeout=settings.WAIT_FOR_CONTAINER_DURATION)
         except queue.Empty:
-            logger.warning(f"Failed to acquire a container after {time.time() - start} seconds)")
+            logger.warning(
+                f"Failed to acquire a container after {time.time() - start} seconds)"
+            )
             raise HTTPExceptions.SERVICE_UNAVAILABLE.with_content(
                 "Sandbox overloaded, retry after a few seconds."
             )
@@ -131,7 +184,6 @@ class Sandbox:
 
         return cw
 
-
     def extract_env(self, envid):
         """Retrieve the environment from the container and write it
         to [settings.ENVIRONMENT_ROOT]/[envid].tgz"""
@@ -143,7 +195,6 @@ class Sandbox:
             for name in os.listdir(self.envpath):
                 tar.add(os.path.join(self.envpath, name), arcname=name)
 
-
     def reset(self):
         """Reset a given container by killing it and overwriting it's instance with
         a new one."""
@@ -153,20 +204,24 @@ class Sandbox:
             try:
                 self.container.remove(force=True)
             except DockerException:
-                logger.info(f"Could not remove container '{self.name}' of id '{self.index}'")
+                logger.info(
+                    f"Could not remove container '{self.name}' of id '{self.index}'"
+                )
 
             self = Sandbox(f"c{self.index}", self.index)
-            logger.info(f"Successfully restarted container '{self.name}' of id '{self.index}'")
+            logger.info(
+                f"Successfully restarted container '{self.name}' of id '{self.index}'"
+            )
             CONTAINERS.put(self, False)
         except DockerException:
-            logger.exception(f"Error while restarting container '{self.name}' of id '{self.index}'")
-
+            logger.exception(
+                f"Error while restarting container '{self.name}' of id '{self.index}'"
+            )
 
     @classmethod
     def reset_all(cls):
         """Reset every containers of CONTAINERS."""
         initialise_containers()
-
 
     def release(self):
         """Release this container."""
@@ -180,9 +235,13 @@ class Sandbox:
             logger.info(f"Released container '{self.name}' of id '{self.index}'")
 
         except DockerException:
-            logger.info(f"Could not release container '{self.name}' of id '{self.index}'")
+            logger.info(
+                f"Could not release container '{self.name}' of id '{self.index}'"
+            )
             self.reset()
 
         except Exception:
-            logger.exception(f"Could not release container '{self.name}' of id '{self.index}'")
+            logger.exception(
+                f"Could not release container '{self.name}' of id '{self.index}'"
+            )
             self.reset()

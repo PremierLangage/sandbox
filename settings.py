@@ -229,10 +229,18 @@ DOCKER_PARAMETERS = {
     ],
 }
 
+# Settings for the database used for the activities.
+ACTIVITY_DATABASE_OPTIONS = {
+    'NAME':     "activity_db",
+    'USER':     'activity_user',
+    'PASSWORD': 'Dimz80k7X97!',
+}
+ACTIVITY_DATABASE_DIR = os.path.join(BASE_DIR, ACTIVITY_DATABASE_OPTIONS["NAME"])
+
 # Check if any of the above settings are override by a config.py file.
 logger = logging.getLogger(__name__)
 try:
-    from config import *  # noqa
+    from config import *  # type: ignore # noqa
     logger.info("Using config.py...")
 except ModuleNotFoundError:
     logger.info("No config file found")
