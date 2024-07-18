@@ -93,6 +93,8 @@ RUN update-alternatives --install /usr/bin/javac javac  /usr/lib/jvm/jdk-22-orac
 
 # Download Junit standalone jar
 RUN wget --progress=dot:giga https://repo1.maven.org/maven2/org/junit/platform/junit-platform-console-standalone/1.10.3/junit-platform-console-standalone-1.10.3.jar -O /utils/junit-platform-console-standalone.jar
+# Download JavaParser jar
+RUN wget --progress=dot:giga https://repo1.maven.org/maven2/com/github/javaparser/javaparser-core/3.26.1/javaparser-core-3.26.1.jar -O /utils/javaparser-core.jar
 
 # Cleaning /tmp
 RUN rm -Rf /tmp/*
