@@ -22,7 +22,6 @@ class GitTestCase(TestCase):
 
 
 class CloneTestCase(GitTestCase):
-
     def test_clone_ok(self):
         path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
         self.assertFalse(os.path.isdir(path))
@@ -32,7 +31,7 @@ class CloneTestCase(GitTestCase):
         self.assertTrue(os.path.isdir(path))
         self.assertTrue(os.path.isdir(os.path.join(path, ".git")))
 
-    def test_clone_fail(self):
+    def test_clone_when_folder_is_already_presents_should_fail(self):
         path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
         os.mkdir(path)
         open(os.path.join(path, "file"), "w+").close()
@@ -45,7 +44,7 @@ class PullTestCase(GitTestCase):
         git.clone("dummy", DUMMY_GIT_URL)
         self.assertEqual(0, git.pull("dummy", DUMMY_GIT_URL))
 
-    def test_pull_fail(self):
+    def test_pull_when_folder_is_already_presents_should_fail(self):
         path = os.path.join(TEST_EXTERNAL_LIBRARIES_ROOT, "dummy")
         os.mkdir(path)
         self.assertNotEqual(

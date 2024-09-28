@@ -40,7 +40,7 @@ def create_container(name: str) -> Container:
     )
 
 
-def purging_containers():
+def purging_containers() -> None:
     """Delete running container created from DOCKER_PARAMETERS["image"]"""
     to_del = docker.from_env().containers.list(
         all=True, filters={"ancestor": settings.DOCKER_PARAMETERS["image"]}
@@ -58,7 +58,7 @@ def purging_containers():
         shutil.rmtree(settings.DOCKER_VOLUME_HOST_BASEDIR)
 
 
-def initialise_containers():
+def initialise_containers() -> None:
     """Called by settings.py to initialize containers at server launch."""
     global CONTAINERS
 
@@ -80,18 +80,10 @@ def initialise_containers():
     logger.info("Containers initialized.")
 
 
-class SandboxUnavailable(Exception):
-    """
-    Exception raised when a container is unavailable.
-    """
-
-    pass
-
-
 class Sandbox:
     """Wrap a docker's container."""
 
-    def __init__(self, name, index):
+    def __init__(self, name: str, index: int):
         path = os.path.join(settings.DOCKER_VOLUME_HOST_BASEDIR, name)
         if os.path.isdir(path):
             shutil.rmtree(path, ignore_errors=True)
@@ -102,7 +94,7 @@ class Sandbox:
         self.index = index
         self.used_since = 0
         self.to_delete = False
-        self.envpath = os.path.join(settings.DOCKER_VOLUME_HOST_BASEDIR, self.name)
+        self.envpath = path
 
     @staticmethod
     def available() -> int:
@@ -135,7 +127,7 @@ class Sandbox:
 
         return cw
 
-    def extract_env(self, envid):
+    def extract_env(self, envid: str) -> None:
         """Retrieve the environment from the container and write it
         to [settings.ENVIRONMENT_ROOT]/[envid].tgz"""
         path = os.path.join(settings.ENVIRONMENT_ROOT, f"{envid}.tgz")
@@ -146,7 +138,7 @@ class Sandbox:
             for name in os.listdir(self.envpath):
                 tar.add(os.path.join(self.envpath, name), arcname=name)
 
-    def reset(self):
+    def reset(self) -> None:
         """Reset a given container by killing it and overwriting it's instance with
         a new one."""
         global CONTAINERS
@@ -170,7 +162,7 @@ class Sandbox:
             )
 
     @classmethod
-    def reset_all(cls):
+    def reset_all(cls) -> None:
         """Reset every containers of CONTAINERS."""
         initialise_containers()
 
@@ -196,3 +188,11 @@ class Sandbox:
                 f"Could not release container '{self.name}' of id '{self.index}'"
             )
             self.reset()
+
+
+class SandboxUnavailable(Exception):
+    """
+    Exception raised when a container is unavailable.
+    """
+
+    pass
