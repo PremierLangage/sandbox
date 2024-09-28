@@ -177,3 +177,16 @@ DOCKER_PARAMETERS = {
 
 # Time before returning a '503: Service Unavailable' when waiting for a container.
 WAIT_FOR_CONTAINER_DURATION = 2
+
+# Total time for an '/execute/' request before timeout
+EXECUTE_TIMEOUT = 10.0
+
+# Directory where environments are stored
+ENVIRONMENT_ROOT = os.path.join(BASE_DIR, "environments")
+if not os.path.isdir(ENVIRONMENT_ROOT):
+    os.makedirs(ENVIRONMENT_ROOT)
+
+# ENVIRONMENT_EXPIRATION: Time before the environment are deleted.
+HOUR = 3600
+DAY = HOUR * 24
+ENVIRONMENT_EXPIRATION = DAY

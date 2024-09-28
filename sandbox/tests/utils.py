@@ -29,7 +29,7 @@ DUMMY_GIT_URL = "https://github.com/github/practice"
     EXTERNAL_LIBRARIES_ROOT=TEST_EXTERNAL_LIBRARIES_ROOT,
     ENVIRONMENT_ROOT=TEST_ENVIRONMENT_ROOT,
 )
-class SandBoxTestCase(TestCase):
+class SandboxTestCase(TestCase):
     @staticmethod
     def remove_test_folders():
         if os.path.exists(TEST_EXTERNAL_LIBRARIES_ROOT):
