@@ -16,10 +16,10 @@ from sandbox.containers import (
     Sandbox,
     SandboxUnavailable,
 )
-from sandbox.tests.utils import SandBoxTestCase, raises_docker_exception
+from sandbox.tests.utils import SandboxTestCase, raises_docker_exception
 
 
-class SandboxWrapperTestCase(SandBoxTestCase):
+class SandboxWrapperTestCase(SandboxTestCase):
     def test_0_initialise_container(self):
         # 'initialise_container' is ran by settings.py
         self.assertEqual(settings.DOCKER_COUNT, Sandbox.available())
