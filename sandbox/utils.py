@@ -49,7 +49,6 @@ def merge_tar_gz(a: Optional[BinaryIO], b: Optional[BinaryIO]) -> Optional[Binar
     with tarfile.open(fileobj=a, mode="r:gz") as t1, tarfile.open(
         fileobj=b, mode="r:gz"
     ) as t2, tarfile.open(fileobj=destio, mode="w:gz") as dest:
-
         t1_members = [m for m in t1.getmembers()]
         t1_names = t1.getnames()
         t2_members = [m for m in t2.getmembers() if m.name not in t1_names]
@@ -81,9 +80,6 @@ def extract(env: str, path: str) -> Optional[BinaryIO]:
     or the file could not be found."""
     env_path = get_env(env)
     if env_path is None:
-        # raise Http404(
-        #     f"No environment with UUID '{env}' found"
-        # )
         raise Http404(f"No environment with UUID '{env}' found")
     try:
         with tarfile.open(env_path, mode="r:gz") as tar:
