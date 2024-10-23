@@ -14,11 +14,11 @@ from django.http import Http404
 from django.test import RequestFactory, SimpleTestCase, override_settings
 from django.urls import reverse
 
-from .utils import ENV1, ENV2, EnvTestCase, SandboxTestCase, TEST_ENVIRONMENT_ROOT
+from .utils import ENV1, ENV2, SandboxTestCase, TEST_ENVIRONMENT_ROOT
 from .. import utils
 
 
-class MergeTarGZTestCase(EnvTestCase):
+class MergeTarGZTestCase(SandboxTestCase):
     def test_merge_tar_gz_both_none(self):
         self.assertEqual(None, utils.merge_tar_gz(None, None))
 
@@ -108,13 +108,15 @@ class ExtractTestCase(SandboxTestCase):
         with self.assertRaises(Http404) as e:
             utils.extract("unknown", "unkown")
 
-        assert "No environment with UUID 'unknown' found" in str(e)
+        assert "No environment with UUID 'unknown' found" in str(e.exception)
 
     def test_extract_not_found_file(self):
         with self.assertRaises(Http404) as e:
-            utils.extract(ENV1, "unkown")
+            utils.extract(ENV1, "unknown")
 
-        assert "The file 'unknown' could not be found in environment '{ENV1}'" in str(e)
+        assert f"The file 'unknown' could not be found in environment '{ENV1}'" in str(
+            e.exception
+        )
 
 
 class ExecutedEnvTestCase(SandboxTestCase):
@@ -123,14 +125,14 @@ class ExecutedEnvTestCase(SandboxTestCase):
         self.factory = RequestFactory()
 
     def test_executed_env_not_found(self):
-        request = self.factory.post(reverse("sandbox:execute"))
+        request = self.factory.post(reverse("execute"))
         with self.assertRaises(Http404) as e:
             utils.executed_env(request, {"environment": "unknown"})
 
-        assert "No environment with UUID 'unknown' found" in str(e)
+        assert "No environment with UUID 'unknown' found" in str(e.exception)
 
     def test_executed_env_only_sandbox(self):
-        request = self.factory.post(reverse("sandbox:execute"))
+        request = self.factory.post(reverse("execute"))
         env_uuid = utils.executed_env(request, {"environment": ENV1})
 
         env1_path = os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV1}.tgz")
@@ -141,7 +143,7 @@ class ExecutedEnvTestCase(SandboxTestCase):
             self.assertEqual(env1.read(), executed_env.read())
 
     def test_executed_env_only_body(self):
-        request = self.factory.post(reverse("sandbox:execute"))
+        request = self.factory.post(reverse("execute"))
         request.FILES["environment"] = open(
             os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV2}.tgz"), "rb"
         )
@@ -156,7 +158,7 @@ class ExecutedEnvTestCase(SandboxTestCase):
 
     def test_executed_env_sandbox_and_body(self):
         """See 'test_merge_tar_gz()' for information about the tests done."""
-        request = self.factory.post(reverse("sandbox:execute"))
+        request = self.factory.post(reverse("execute"))
         request.FILES["environment"] = open(
             os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV1}.tgz"), "rb"
         )
@@ -239,7 +241,7 @@ class ParseSavePathTestCase(SimpleTestCase):
 
         with self.assertRaises(SuspiciousOperation) as e:
             utils.parse_save(config)
-        assert f'save must be a boolean, not {type(config["save"])}' in str(e)
+        assert f'save must be a boolean, not {type(config["save"])}' in str(e.exception)
 
 
 class ContainerCpuTestCase(SimpleTestCase):
@@ -249,7 +251,7 @@ class ContainerCpuTestCase(SimpleTestCase):
             **{"cpuset_cpus": "2-4"},
         }
     )
-    def container_cpu_count_hyphen(self):
+    def test_container_cpu_count_hyphen(self):
         self.assertEqual(3, utils.container_cpu_count())
 
     @override_settings(
@@ -258,7 +260,7 @@ class ContainerCpuTestCase(SimpleTestCase):
             **{"cpuset_cpus": "1,4,7,10"},
         }
     )
-    def container_cpu_count_hyphen_with_custom_docker_parameters(self):
+    def test_container_cpu_count_hyphen_with_custom_docker_parameters(self):
         self.assertEqual(4, utils.container_cpu_count())
 
 

@@ -16,8 +16,22 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
+
+from sandbox import views
+
+app_name = "sandbox"
+
+extra_patterns = [
+    path(r"environments/<uuid:env>/", views.EnvView.as_view(), name="environment"),
+    path(r"files/<uuid:env>/<path:path>/", views.FileView.as_view(), name="file"),
+    path(r"specifications/", views.SpecificationsView.as_view(), name="specs"),
+    path(r"usages/", views.UsageView.as_view(), name="usage"),
+    path(r"libraries/", views.LibrariesView.as_view(), name="libraries"),
+    path(r"execute/", views.ExecuteView.as_view(), name="execute"),
+]
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("sandbox/", include(extra_patterns)),
 ]

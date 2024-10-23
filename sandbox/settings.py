@@ -126,6 +126,7 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+SANDBOX_VERSION = "3.0.3"
 
 # External libraries will be added to containers in /utils/libs/, this directory will be added
 # to both PATH and PYTHONPATH environment variables.

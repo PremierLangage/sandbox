@@ -50,6 +50,7 @@ class SandboxTestCase(TestCase):
         super().tearDownClass()
 
     def setUp(self):
+        self.remove_test_folders()
         shutil.copytree(RESOURCES_LIB_ROOT, TEST_EXTERNAL_LIBRARIES_ROOT)
         shutil.copytree(RESOURCES_ENV_ROOT, TEST_ENVIRONMENT_ROOT)
         tarfile.open(
