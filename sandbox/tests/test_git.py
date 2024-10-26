@@ -5,7 +5,7 @@ import uuid
 from unittest import TestCase
 from sandbox import git
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "sandbox.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "settings")
 
 TEST_EXTERNAL_LIBRARIES_ROOT = os.path.join("/tmp/sandbox/", str(uuid.uuid4()))
 DUMMY_GIT_URL = "https://github.com/github/practice"

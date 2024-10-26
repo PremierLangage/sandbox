@@ -125,14 +125,14 @@ class ExecutedEnvTestCase(SandboxTestCase):
         self.factory = RequestFactory()
 
     def test_executed_env_not_found(self):
-        request = self.factory.post(reverse("execute"))
+        request = self.factory.post(reverse("sandbox:execute"))
         with self.assertRaises(Http404) as e:
             utils.executed_env(request, {"environment": "unknown"})
 
         assert "No environment with UUID 'unknown' found" in str(e.exception)
 
     def test_executed_env_only_sandbox(self):
-        request = self.factory.post(reverse("execute"))
+        request = self.factory.post(reverse("sandbox:execute"))
         env_uuid = utils.executed_env(request, {"environment": ENV1})
 
         env1_path = os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV1}.tgz")
@@ -143,7 +143,7 @@ class ExecutedEnvTestCase(SandboxTestCase):
             self.assertEqual(env1.read(), executed_env.read())
 
     def test_executed_env_only_body(self):
-        request = self.factory.post(reverse("execute"))
+        request = self.factory.post(reverse("sandbox:execute"))
         request.FILES["environment"] = open(
             os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV2}.tgz"), "rb"
         )
@@ -158,7 +158,7 @@ class ExecutedEnvTestCase(SandboxTestCase):
 
     def test_executed_env_sandbox_and_body(self):
         """See 'test_merge_tar_gz()' for information about the tests done."""
-        request = self.factory.post(reverse("execute"))
+        request = self.factory.post(reverse("sandbox:execute"))
         request.FILES["environment"] = open(
             os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV1}.tgz"), "rb"
         )
