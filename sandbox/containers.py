@@ -166,7 +166,7 @@ class Sandbox:
         """Reset every containers of CONTAINERS."""
         initialise_containers()
 
-    def release(self):
+    def release(self) -> None:
         """Release this container."""
         global CONTAINERS
 

@@ -129,7 +129,7 @@ def executed_env(request: HttpRequest, config: dict) -> str:
     return uuid_env
 
 
-def parse_environ(config: dict) -> dict:
+def parse_environ(config: dict) -> dict[str, str]:
     """Check the validity of 'environ' in the request and return it, returns an empty dictionnary
     if it is not present."""
     if "environ" in config:
@@ -145,28 +145,26 @@ def parse_environ(config: dict) -> dict:
     return {}
 
 
-def parse_result_path(config: dict) -> str | None:
+def parse_result_path(config: dict[str, Any]) -> str | None:
     """Check the validity of 'result' in the request and return it, returns None if it is not
     present."""
-    if "result_path" in config:
-        if not isinstance(config["result_path"], str):
-            raise SuspiciousOperation(
-                f'result_path must be a string, not {type(config["result_path"])}'
-            )
-        return config["result_path"]
-    return None
+    result_path = config.get("result_path")
+    if not isinstance(result_path, str):
+        raise SuspiciousOperation(
+            f'result_path must be a string, not {type(config["result_path"])}'
+        )
+
+    return result_path
 
 
 def parse_save(config: dict) -> bool:
     """Check the validity of 'save' in the request and return it, returns False if it is not
     present."""
-    if "save" in config:
-        if not isinstance(config["save"], bool):
-            raise SuspiciousOperation(
-                f'save must be a boolean, not {type(config["save"])}'
-            )
-        return config["save"]
-    return False
+    save = config.get("save", False)
+    if not isinstance(save, bool):
+        raise SuspiciousOperation(f'save must be a boolean, not {type(config["save"])}')
+
+    return save
 
 
 def container_cpu_count() -> int:
@@ -237,7 +235,10 @@ def docker_version() -> str:
     return docker_version.strip()[15:].split(",")[0]
 
 
-def specifications() -> dict:
+Specification = dict[str, Any]
+
+
+def specifications() -> Specification:
     """Return the dictionary corresponding to the /specifications/ API endpoints."""
     _, freq_min, freq_max = psutil.cpu_freq()
     ram, swap = container_ram_swap()

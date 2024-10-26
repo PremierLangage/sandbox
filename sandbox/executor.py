@@ -10,6 +10,7 @@ import os
 import tarfile
 import time
 from datetime import timedelta
+from typing import Any, Self
 
 from django.conf import settings
 from django.core.exceptions import SuspiciousOperation
@@ -35,7 +36,10 @@ class Command:
     """Use to wrap bash commands."""
 
     def __init__(
-        self, command: str, timeout: float = settings.EXECUTE_TIMEOUT, environ=None
+        self,
+        command: str,
+        timeout: float = settings.EXECUTE_TIMEOUT,
+        environ: dict[str, Any] | None = None,
     ):
         if environ is None:
             environ = {}
@@ -48,7 +52,7 @@ class Command:
         self.environ = environ if environ is not None else {}
         self.timeout = timeout
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<executor.Command '{self.command}' timeout={self.timeout}>"
 
     __str__ = __repr__
@@ -68,7 +72,7 @@ class Command:
         )
 
     @classmethod
-    def from_config(cls, config: dict) -> list["Command"]:
+    def from_config(cls, config: dict) -> list[Self]:
         """Extract commands from the config dictionary, returning a list of Commands."""
         if "commands" not in config:
             raise SuspiciousOperation("Missing field 'commands' in config")
@@ -177,7 +181,7 @@ class Executor:
         )
         return content
 
-    def execute(self) -> dict:
+    def execute(self) -> dict[str, Any]:
         """Execute each commands in the container."""
         start = time.time()
 
