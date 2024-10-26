@@ -11,7 +11,7 @@ import subprocess
 import tarfile
 import time
 import uuid
-from typing import BinaryIO, Optional, Tuple
+from typing import Any, BinaryIO
 
 import humanfriendly
 import psutil
@@ -25,7 +25,7 @@ from sandbox.containers import Sandbox
 logger = logging.getLogger(__name__)
 
 
-def merge_tar_gz(a: Optional[BinaryIO], b: Optional[BinaryIO]) -> Optional[BinaryIO]:
+def merge_tar_gz(a: BinaryIO | None, b: BinaryIO | None) -> BinaryIO | None:
     """Merge <a> and <b>, returning a new tarfile.TarFile object.
 
     If two files in <a> and <b> have the same name, the one in <a> prevails.
@@ -69,13 +69,13 @@ def merge_tar_gz(a: Optional[BinaryIO], b: Optional[BinaryIO]) -> Optional[Binar
     return destio
 
 
-def get_env(env: str) -> Optional[str]:
+def get_env(env: str) -> str | None:
     """Returns the path of the environment <env>, None if it does not exists."""
     path = os.path.join(settings.ENVIRONMENT_ROOT, f"{env}.tgz")
     return path if os.path.isfile(path) else None
 
 
-def extract(env: str, path: str) -> Optional[BinaryIO]:
+def extract(env: str, path: str) -> BinaryIO | None:
     """Extract and returns the file at <path> inside <env>, returns None of either the environment
     or the file could not be found."""
     env_path = get_env(env)
@@ -145,7 +145,7 @@ def parse_environ(config: dict) -> dict:
     return {}
 
 
-def parse_result_path(config: dict) -> Optional[str]:
+def parse_result_path(config: dict) -> str | None:
     """Check the validity of 'result' in the request and return it, returns None if it is not
     present."""
     if "result_path" in config:
@@ -182,7 +182,7 @@ def container_cpu_count() -> int:
     return cpu_count
 
 
-def container_ram_swap() -> Tuple[int, int]:
+def container_ram_swap() -> tuple[int, int]:
     """Return ram and swap available to a container.
 
     See https://docs.docker.com/config/containers/resource_constraints/#--memory-swap-details
@@ -281,7 +281,7 @@ def specifications() -> dict:
     }
 
 
-def usage_io_network() -> Tuple[dict, dict]:
+def usage_io_network() -> tuple[dict, dict]:
     """Return current partitions I/O and network usage.
 
     Returned value is a tuple containing :
@@ -325,7 +325,10 @@ def usage_io_network() -> Tuple[dict, dict]:
     return io_usage, network_usage
 
 
-def usage():
+Usage = dict[str, Any]
+
+
+def usage() -> Usage:
     """Return the dictionary corresponding to the /usage/ API endpoints."""
 
     io_usage, network_usage = usage_io_network()
