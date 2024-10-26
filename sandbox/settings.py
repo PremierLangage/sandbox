@@ -10,8 +10,13 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
+import logging
 import os
+import sys
+import platform
+import threading
 
+from apscheduler.triggers.cron import CronTrigger
 from pathlib import Path
 from docker.types import Ulimit
 
@@ -28,7 +33,10 @@ SECRET_KEY = "django-insecure-h9u-nn=)$8h*$w8#$=0ln@(aw$07i@-wjxa*!z6%d_*_ax7flf
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# Set to true when 'python3 manage.py test' is used
+TESTING = sys.argv[1:2] == ["test"]
+
+ALLOWED_HOSTS = ["127.0.0.1"]
 
 
 # Application definition
@@ -103,16 +111,92 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+LOGGER_ADDRESS = "/dev/log"
+if platform.system() == "Darwin":
+    # https://docs.python.org/3/library/logging.handlers.html#sysloghandler
+    LOGGER_ADDRESS = "/var/run/syslog"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "require_debug_false": {
+            "()": "django.utils.log.RequireDebugFalse",
+        },
+        "require_debug_true": {
+            "()": "django.utils.log.RequireDebugTrue",
+        },
+    },
+    "formatters": {
+        "verbose": {
+            "format": (
+                "[%(asctime)-15s] [%(pathname)s]"
+                "[%(filename)s:%(funcName)s:%(lineno)d]"
+                " %(levelname)s -- %(message)s"
+            ),
+            "datefmt": "%Y/%m/%d %H:%M:%S",
+        },
+        "simple": {
+            "format": (
+                "[%(asctime)s] [%(filename)s:%(funcName)s:%(lineno)d]"
+                " %(levelname)s -- %(message)s"
+            ),
+            "datefmt": "%H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+        "syslog": {
+            "level": "INFO",
+            "class": "logging.handlers.SysLogHandler",
+            "facility": "local6",
+            "address": LOGGER_ADDRESS,
+            "formatter": "verbose",
+            "filters": ["require_debug_false"],
+        },
+        "syslog_debug": {
+            "level": "DEBUG",
+            "class": "logging.handlers.SysLogHandler",
+            "facility": "local6",
+            "address": LOGGER_ADDRESS,
+            "formatter": "verbose",
+            "filters": ["require_debug_true"],
+        },
+        "mail_admins": {
+            "level": "WARNING",
+            "class": "django.utils.log.AdminEmailHandler",
+            "include_html": True,
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "sandbox": {
+            "handlers": ["console", "syslog", "mail_admins", "syslog_debug"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+        "django": {
+            "handlers": ["console", "syslog", "mail_admins", "syslog_debug"],
+            "level": "INFO",
+        },
+        "django.request": {
+            "handlers": ["console", "syslog", "syslog_debug"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
 LANGUAGE_CODE = "en-us"
-
 TIME_ZONE = "UTC"
-
 USE_I18N = True
-
 USE_TZ = True
 
 
@@ -126,7 +210,7 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-SANDBOX_VERSION = "3.0.3"
+SANDBOX_VERSION = "3.1.0"
 
 # External libraries will be added to containers in /utils/libs/, this directory will be added
 # to both PATH and PYTHONPATH environment variables.
@@ -141,6 +225,16 @@ EXTERNAL_LIBRARIES_ROOT = os.path.join(BASE_DIR, "libs")
 if not os.path.isdir(EXTERNAL_LIBRARIES_ROOT):
     os.makedirs(EXTERNAL_LIBRARIES_ROOT)
 
+EXTERNAL_LIBRARIES_CRON_TRIGGER = CronTrigger(
+    year="*",
+    month="*",
+    day="*",
+    week="*",
+    day_of_week="*",
+    hour="*/2",
+    minute="0",
+    second="0",
+)
 
 #
 # DOCKER_COUNT (int) – Max number of containers running simultaneously.
@@ -155,7 +249,7 @@ if not os.path.isdir(EXTERNAL_LIBRARIES_ROOT):
 # every argument
 
 
-DOCKER_COUNT = 5
+DOCKER_COUNT = 20 if not TESTING else 5
 DOCKER_VOLUME_HOST_BASEDIR = os.path.join(BASE_DIR, "containers_env")
 DOCKER_PARAMETERS = {
     "image": "pl:latest",
@@ -191,3 +285,21 @@ if not os.path.isdir(ENVIRONMENT_ROOT):
 HOUR = 3600
 DAY = HOUR * 24
 ENVIRONMENT_EXPIRATION = DAY
+
+
+# Check if any of the above settings are override by a config.py file.
+logger = logging.getLogger(__name__)
+try:
+    from config import *  # noqa
+
+    logger.info("Using config.py...")
+except ModuleNotFoundError:
+    logger.info("No config file found")
+del logger
+
+
+from sandbox.containers import initialise_containers  # noqa
+
+
+INITIALISING_THREAD = threading.Thread(target=initialise_containers)
+INITIALISING_THREAD.start()
