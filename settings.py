@@ -55,7 +55,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
+    # "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -79,7 +79,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "sandbox.wsgi.application"
+WSGI_APPLICATION = "wsgi.application"
 
 
 # Database
@@ -218,6 +218,7 @@ SANDBOX_VERSION = "3.1.0"
 # will use, ALIAS the directory in which the library will be cloned.
 EXTERNAL_LIBRARIES = [
     ("https://github.com/PremierLangage/premierlangage-lib.git", "pl"),
+    ("https://github.com/PlatonOrg/platon-lib.git", "platon"),
 ]
 
 # Path where the libraries are downloaded
