@@ -41,16 +41,14 @@ class Command:
         timeout: float = settings.EXECUTE_TIMEOUT,
         environ: dict[str, Any] | None = None,
     ):
-        if environ is None:
-            environ = {}
+        self.environ = environ if environ is not None else {}
+        self.timeout = timeout
         if command.startswith("-"):
             self.command = command[1:]
             self.ignore_failure = True
         else:
             self.command = command
             self.ignore_failure = False
-        self.environ = environ if environ is not None else {}
-        self.timeout = timeout
 
     def __repr__(self) -> str:
         return f"<executor.Command '{self.command}' timeout={self.timeout}>"

@@ -20,13 +20,13 @@ from .. import utils
 
 class MergeTarGZTestCase(SandboxTestCase):
     def test_merge_tar_gz_both_none(self):
-        self.assertEqual(None, utils.merge_tar_gz(None, None))
+        self.assertEqual(None, utils._merge_tar_gz(None, None))
 
     def test_merge_tar_gz_one_none(self):
         b = io.BytesIO(b"test")
-        self.assertEqual(b"test", utils.merge_tar_gz(b, None).read())
+        self.assertEqual(b"test", utils._merge_tar_gz(b, None).read())
         b.seek(0)
-        self.assertEqual(b"test", utils.merge_tar_gz(None, b).read())
+        self.assertEqual(b"test", utils._merge_tar_gz(None, b).read())
 
     def test_merge_tar_gz(self):
         """
@@ -59,7 +59,7 @@ class MergeTarGZTestCase(SandboxTestCase):
         """
         env1 = open(os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV1}.tgz"), "rb")
         env2 = open(os.path.join(TEST_ENVIRONMENT_ROOT, f"{ENV2}.tgz"), "rb")
-        result = utils.merge_tar_gz(env1, env2)
+        result = utils._merge_tar_gz(env1, env2)
         tar = tarfile.open(fileobj=result, mode="r:gz")
 
         env1.close()

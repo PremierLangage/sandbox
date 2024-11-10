@@ -25,7 +25,67 @@ from sandbox.containers import Sandbox
 logger = logging.getLogger(__name__)
 
 
-def merge_tar_gz(a: BinaryIO | None, b: BinaryIO | None) -> BinaryIO | None:
+def get_env(env: str) -> str | None:
+    """Returns the path of the environment <env>, None if it does not exists."""
+    path = os.path.join(settings.ENVIRONMENT_ROOT, f"{env}.tgz")
+    return path if os.path.isfile(path) else None
+
+
+def extract(env: str, path: str) -> BinaryIO | None:
+    """Extract and returns the file at <path> inside <env>, returns None of either the environment
+    or the file could not be found."""
+    env_path = get_env(env)
+    if env_path is None:
+        raise Http404(f"No environment with UUID '{env}' found")
+    try:
+        with tarfile.open(env_path, mode="r:gz") as tar:
+            buffer = tar.extractfile(tar.getmember(path))
+            file = io.BytesIO(buffer.read())
+    except KeyError:
+        raise Http404(f"The file '{path}' could not be found in environment '{env}'")
+
+    return file
+
+
+def executed_env(request: HttpRequest, config: dict) -> str:
+    """Returns the UUID4 corresponding to the environment that will be used in the execution.
+
+    If an environment is provided both in the body and the config, this function will do the merge
+    through 'merge_tar_gz()'.
+
+    raises:
+        - django_http_exceptions.HTTPExceptions.NOT_FOUND if the environment asked in request's
+          config cannot be found.
+    """
+    body_env = request.FILES.get("environment")
+
+    sandbox_env = None
+    sandbox_env_uuid = config.get("environment")
+    if sandbox_env_uuid is not None:
+        sandbox_env = get_env(sandbox_env_uuid)
+        if not sandbox_env:
+            raise Http404(f"No environment with UUID '{sandbox_env_uuid}' found")
+        sandbox_env = open(sandbox_env, "rb")
+
+    env = _merge_tar_gz(body_env, sandbox_env)
+
+    if body_env is not None:
+        body_env.close()
+    if sandbox_env is not None:
+        sandbox_env.close()
+
+    uuid_env = str(uuid.uuid4())
+    path = os.path.join(settings.ENVIRONMENT_ROOT, f"{uuid_env}.tgz")
+    if env is not None:
+        with open(path, "w+b") as f:
+            f.write(env.read())
+    else:
+        tarfile.open(path, "x:gz").close()
+
+    return uuid_env
+
+
+def _merge_tar_gz(a: BinaryIO | None, b: BinaryIO | None) -> BinaryIO | None:
     """Merge <a> and <b>, returning a new tarfile.TarFile object.
 
     If two files in <a> and <b> have the same name, the one in <a> prevails.
@@ -69,66 +129,6 @@ def merge_tar_gz(a: BinaryIO | None, b: BinaryIO | None) -> BinaryIO | None:
     return destio
 
 
-def get_env(env: str) -> str | None:
-    """Returns the path of the environment <env>, None if it does not exists."""
-    path = os.path.join(settings.ENVIRONMENT_ROOT, f"{env}.tgz")
-    return path if os.path.isfile(path) else None
-
-
-def extract(env: str, path: str) -> BinaryIO | None:
-    """Extract and returns the file at <path> inside <env>, returns None of either the environment
-    or the file could not be found."""
-    env_path = get_env(env)
-    if env_path is None:
-        raise Http404(f"No environment with UUID '{env}' found")
-    try:
-        with tarfile.open(env_path, mode="r:gz") as tar:
-            buffer = tar.extractfile(tar.getmember(path))
-            file = io.BytesIO(buffer.read())
-    except KeyError:
-        raise Http404(f"The file '{path}' could not be found in environment '{env}'")
-
-    return file
-
-
-def executed_env(request: HttpRequest, config: dict) -> str:
-    """Returns the UUID4 corresponding to the environment that will be used in the execution.
-
-    If an environment is provided both in the body and the config, this function will do the merge
-    through 'merge_tar_gz()'.
-
-    raises:
-        - django_http_exceptions.HTTPExceptions.NOT_FOUND if the environment asked in request's
-          config cannot be found.
-    """
-    body_env = request.FILES.get("environment")
-
-    sandbox_env = None
-    sandbox_env_uuid = config.get("environment")
-    if sandbox_env_uuid is not None:
-        sandbox_env = get_env(sandbox_env_uuid)
-        if not sandbox_env:
-            raise Http404(f"No environment with UUID '{sandbox_env_uuid}' found")
-        sandbox_env = open(sandbox_env, "rb")
-
-    env = merge_tar_gz(body_env, sandbox_env)
-
-    if body_env is not None:
-        body_env.close()
-    if sandbox_env is not None:
-        sandbox_env.close()
-
-    uuid_env = str(uuid.uuid4())
-    path = os.path.join(settings.ENVIRONMENT_ROOT, f"{uuid_env}.tgz")
-    if env is not None:
-        with open(path, "w+b") as f:
-            f.write(env.read())
-    else:
-        tarfile.open(path, "x:gz").close()
-
-    return uuid_env
-
-
 def parse_environ(config: dict) -> dict[str, str]:
     """Check the validity of 'environ' in the request and return it, returns an empty dictionnary
     if it is not present."""
@@ -148,7 +148,10 @@ def parse_environ(config: dict) -> dict[str, str]:
 def parse_result_path(config: dict[str, Any]) -> str | None:
     """Check the validity of 'result' in the request and return it, returns None if it is not
     present."""
-    result_path = config.get("result_path")
+    if "result_path" not in config:
+        return None
+
+    result_path = config["result_path"]
     if not isinstance(result_path, str):
         raise SuspiciousOperation(
             f'result_path must be a string, not {type(config["result_path"])}'
@@ -160,9 +163,10 @@ def parse_result_path(config: dict[str, Any]) -> str | None:
 def parse_save(config: dict) -> bool:
     """Check the validity of 'save' in the request and return it, returns False if it is not
     present."""
+
     save = config.get("save", False)
     if not isinstance(save, bool):
-        raise SuspiciousOperation(f'save must be a boolean, not {type(config["save"])}')
+        raise SuspiciousOperation(f"save must be a boolean, not {type(save)}")
 
     return save
 
