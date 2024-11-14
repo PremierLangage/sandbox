@@ -38,7 +38,7 @@ def pull(alias: str, url: str, path: str | None = None) -> int:
         if path is None:
             path = settings.EXTERNAL_LIBRARIES_ROOT
         os.chdir(os.path.join(path, alias))
-        cmd = f"GIT_TERMINAL_PROMPT=0 git pull {url} master"
+        cmd = f"GIT_TERMINAL_PROMPT=0 git pull {url} master --ff-only"
         p = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True
         )
